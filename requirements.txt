@@ -1,0 +1,8 @@
+cdsapi
+h5netcdf
+h5py
+matplotlib
+numpy
+pandas
+requests
+xarray
