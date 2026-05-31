@@ -20,7 +20,7 @@ Because food and water are sourced regionally, regional weather data can be used
 
 ## Idea
 
-Combine regional and national market time series for food, water, and fuel prices with satellite-based weather data.
+Combine regional and national market time series for food, water, and fuel prices with weather data.
 
 The resulting time series are sent to Sybilion for forecasting. A deterministic, rule-based agentic layer then turns those forecasts into interpretable resource-allocation signals: where aid should go and how the available capacity should be split across goods.
 

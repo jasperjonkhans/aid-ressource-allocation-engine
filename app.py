@@ -745,11 +745,16 @@ def _dashboard_html(payload: dict[str, object]) -> str:
     document.getElementById("mode").textContent = `Mode ${{data.mode}} | Budget ${{data.budgetLabel}}`;
 
     const decisions = document.getElementById("decisions");
+    const globalAllocationMax = Math.max(
+      ...data.decisions.flatMap((decision) =>
+        Object.values(decision.budgetAllocation).map((value) => Number(value) || 0)
+      ),
+      1
+    );
     data.decisions.forEach((decision) => {{
       const panel = document.createElement("article");
       panel.className = "panel span-4";
       const allocations = Object.entries(decision.budgetAllocation);
-      const maxAllocation = Math.max(...allocations.map(([, value]) => value), 1);
       panel.innerHTML = `
         <div class="decision-head">
           <div>
@@ -762,7 +767,7 @@ def _dashboard_html(payload: dict[str, object]) -> str:
         ${{allocations.map(([key, value]) => `
           <div class="bar-row">
             <div>${{cargoLabels[key] || key}}</div>
-            <div class="bar"><div class="fill ${{key}}" style="width:${{Math.max((value / maxAllocation) * 100, 3)}}%"></div></div>
+            <div class="bar"><div class="fill ${{key}}" style="width:${{Math.max((value / globalAllocationMax) * 100, 3)}}%"></div></div>
             <div class="muted">${{Number(value).toFixed(2)}}</div>
           </div>
         `).join("")}}
@@ -861,6 +866,11 @@ def _dashboard_html(payload: dict[str, object]) -> str:
       chartEnd.textContent = `Forecast ends ${{combined[combined.length - 1].date}}`;
     }}
 
+    const defaultForecastIndex = Math.max(
+      data.forecasts.findIndex((forecast) => forecast.id === "weather-relative_humidity_pct"),
+      0
+    );
+
     data.forecasts.forEach((forecast, index) => {{
       const button = document.createElement("button");
       button.textContent = forecast.label;
@@ -870,10 +880,10 @@ def _dashboard_html(payload: dict[str, object]) -> str:
         button.classList.add("active");
         drawChart(forecast);
       }});
-      if (index === 0) button.classList.add("active");
+      if (index === defaultForecastIndex) button.classList.add("active");
       tabs.appendChild(button);
     }});
-    drawChart(data.forecasts[0]);
+    drawChart(data.forecasts[defaultForecastIndex]);
   </script>
 </body>
 </html>
