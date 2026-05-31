@@ -536,7 +536,22 @@ def reasoning_formulas() -> dict[str, str]:
 
 
 def _reason_direction(value: float) -> str:
-    return "increases" if value >= 0 else "reduces"
+    return "supports" if value >= 0 else "weakens"
+
+
+def _feature_reason_text(
+    *,
+    cargo_type: str,
+    label: str,
+    value: float,
+    contribution: float,
+) -> str:
+    cargo_label = cargo_type.replace("_", " ")
+    direction = _reason_direction(contribution)
+    return (
+        f"{label} {direction} {cargo_label} for these forecasts "
+        f"(value={value:.4f}, contribution={contribution:+.4f})."
+    )
 
 
 def _component_reason(
@@ -557,9 +572,11 @@ def _component_reason(
         "contribution": round(contribution, 6),
         "value": round(value, 6),
         "weight": round(weight, 6),
-        "text": (
-            f"{label} {_reason_direction(contribution)} {cargo_type} pressure "
-            f"(feature={value:.4f}, weight={weight:.4f}, contribution={contribution:.4f})."
+        "text": _feature_reason_text(
+            cargo_type=cargo_type,
+            label=label,
+            value=value,
+            contribution=contribution,
         ),
     }
 
@@ -571,18 +588,13 @@ def explain_allocations(
     budget_allocation: dict[str, float],
     effective_costs: dict[str, float],
     accessibility: float,
-    top_n: int = 5,
+    top_n: int = 3,
 ) -> dict[str, list[dict[str, Any]]]:
     components = compute_score_components(features)
-    score_weights = cargo_score_weights()
     reasoning: dict[str, list[dict[str, Any]]] = {}
 
     for cargo_type in CARGO_TYPES:
         cargo_components = components[cargo_type]
-        pressure = _component_pressure(cargo_components)
-        score = float(scores[cargo_type])
-        effective_cost = float(effective_costs[cargo_type])
-        budget_pressure = score * effective_cost
         reasons = [
             _component_reason(
                 cargo_type=cargo_type,
@@ -591,41 +603,6 @@ def explain_allocations(
             )
             for component in cargo_components
         ]
-        reasons.extend(
-            [
-                {
-                    "type": "cargo_weight",
-                    "rank_basis": round(abs(score - pressure), 6),
-                    "value": round(score_weights[cargo_type], 6),
-                    "contribution": round(score, 6),
-                    "text": (
-                        f"Cargo priority weight {score_weights[cargo_type]:.4f} scales "
-                        f"raw pressure {pressure:.4f} to score {score:.4f}."
-                    ),
-                },
-                {
-                    "type": "accessibility_cost",
-                    "feature": "accessibility",
-                    "rank_basis": round(abs(effective_cost - 1.0), 6),
-                    "value": round(accessibility, 6),
-                    "effective_unit_cost": round(effective_cost, 6),
-                    "text": (
-                        f"Regional accessibility {accessibility:.4f} changes delivery cost "
-                        f"to {effective_cost:.4f}, affecting budget pressure."
-                    ),
-                },
-                {
-                    "type": "budget_pressure",
-                    "rank_basis": round(abs(budget_pressure), 6),
-                    "value": round(budget_pressure, 6),
-                    "budget_allocation": round(float(budget_allocation[cargo_type]), 2),
-                    "text": (
-                        f"Allocation uses softmax over score times effective unit cost; "
-                        f"{cargo_type} budget pressure is {budget_pressure:.4f}."
-                    ),
-                },
-            ]
-        )
         reasoning[cargo_type] = sorted(
             reasons,
             key=lambda reason: (-float(reason["rank_basis"]), str(reason["type"])),
