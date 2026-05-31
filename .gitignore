@@ -23,6 +23,10 @@ data/**/*.jpg
 data/**/*.jpeg
 data/**/*.xlsx
 
+# Generated reports and scenario artifacts
+reports/
+scenarios/**/output/
+
 # Minimal files required for the cached demo run
 !data/
 !data/somalia/

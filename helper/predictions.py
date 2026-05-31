@@ -667,22 +667,38 @@ def build_global_fuel_body(
     horizon: int = DEFAULT_PRICE_HORIZON,
     aggregation: str = "median",
 ) -> dict[str, Any]:
-    return build_forecast_body(
+    keywords = [
+        "Somalia fuel prices",
+        "diesel prices Somalia",
+        "petrol prices Somalia",
+        "Somalia transport costs",
+        "Somalia food market fuel costs",
+        "diesel fuel imports Somalia",
+        "petrol transport costs Somalia",
+        "Somali shilling USD exchange rate",
+        "Horn of Africa logistics",
+        "Somalia inflation consumer prices",
+        "Somalia port import volumes",
+        "Somalia drought conditions",
+    ]
+    body = build_forecast_body(
         history,
-        title="Global fuel price proxy from Somalia WFP fuel prices",
+        title="Somalia national fuel price proxy",
         description=(
             f"Monthly fuel price proxy computed as the {aggregation} of WFP Somalia "
             "fuel commodity rows, including diesel and super petrol. USD prices are "
             "used, and missing months are primitively filled by interpolation with "
             "forward/backward fill at the edges."
         ),
-        keywords=FUEL_KEYWORDS,
+        keywords=keywords,
         horizon=horizon,
         frequency="monthly",
         backtest=True,
         recency_factor=0.75,
         strictly_positive=True,
     )
+    body["filters"] = {"limit": 1000}
+    return body
 
 
 def build_regional_food_body(

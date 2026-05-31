@@ -47,6 +47,37 @@ python app.py run --reasoning off
 python app.py run --top-drivers 8
 ```
 
+## Prediction UI
+
+Generate a static browser dashboard for agent allocation and forecast charts:
+
+```bash
+python app.py dashboard
+```
+
+The dashboard is written to `reports/aid_dashboard.html` and can be opened directly in a browser. It uses cached/local data by default. Use a custom output path when needed:
+
+```bash
+python app.py dashboard --dashboard-output reports/demo_dashboard.html
+```
+
+Print a cached forecast in a compact terminal UI:
+
+```bash
+python app.py prediction-ui
+python app.py prediction-ui --prediction cmb
+python app.py prediction-ui --prediction fuel
+python app.py prediction-ui --prediction regional-water --region Gedo
+python app.py prediction-ui --prediction regional-food --region "Buur Hakaba"
+python app.py prediction-ui --prediction weather --weather-metric rainfall_mm_per_day
+```
+
+Show a longer horizon:
+
+```bash
+python app.py prediction-ui --prediction water --rows 12
+```
+
 ## Agent Runs
 
 Run one region:

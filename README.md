@@ -2,7 +2,7 @@
 
 *A decision-support engine for humanitarian aid allocation in Somalia. The system combines regional food and water forecasts, national CMB and fuel proxies, and Copernicus weather indicators to allocate scarce aid capacity across food supplies, water supplies, fuel, and water infrastructure equipment, with an overall deterministic reasoning summary.*
 
-## Somalia in crisis
+## Somalia
 
 Somalia has suffered from prolonged conflict, resulting in weak infrastructure on top of that recurrent droughts, and heat waves plaege the region. As a result the somali population regularly suffers from water and food shortages often resulting in wide spread famines.
 
@@ -12,13 +12,13 @@ Somalia has suffered from prolonged conflict, resulting in weak infrastructure o
 Thats where Humanitarian organisations step in, but - funding  is limited. Moreover is it often wasted by poor ressource management. Humanitarian organisations have trouble predicting where and in which quantity certain aids will be needed.
 
 
-## The Upside
+## Upside
 
 Somalia has a useful advantage: time-series data for food, water, and fuel prices is surprisingly available. 
 Because food and water are sourced regionally, regional weather data can be used as an early indicator for drought pressure and future market stress.
 
 
-## the idea
+## Idea
 
 Combine regional and national market time series for food, water, and fuel prices with satellite-based weather data.
 
@@ -105,6 +105,30 @@ Run from cached data and cached/local forecasts:
 python app.py --mode cached
 python app.py run --mode cached
 ```
+
+Generate a browser dashboard that visualizes agent output and prediction curves:
+
+```bash
+python app.py dashboard
+```
+
+The command writes `reports/aid_dashboard.html`, which can be opened directly in a browser. It uses cached/local data by default so it does not start live forecast jobs unless you pass `--mode live`.
+
+Print a slick minimalist forecast UI in the terminal:
+
+```bash
+python app.py prediction-ui
+python app.py prediction-ui --prediction regional-food --region Gedo
+python app.py prediction-ui --prediction weather --weather-metric rainfall_mm_per_day
+```
+
+Run the compound drought-shock scenario for the live demo. It keeps cached data unchanged, modifies rainfall, humidity, and temperature forecasts in memory, and compares baseline allocation/reasoning with the stressed decision:
+
+```bash
+python scenarios/rainfall_weather_shock/run_rainfall_shock.py
+```
+
+For a narrated notebook walkthrough, open `scenarios/rainfall_weather_shock/rainfall_weather_shock.ipynb`.
 
 Run the agent for selected regions or a custom budget:
 
