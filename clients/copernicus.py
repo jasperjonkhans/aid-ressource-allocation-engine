@@ -11,16 +11,14 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from project.config import CONFIG, project_path
 
-CDS_URL = "https://cds.climate.copernicus.eu/api"
-ERA5_LAND_MONTHLY_DATASET = "reanalysis-era5-land-monthly-means"
-DEFAULT_DATA_DIR = Path("project/data/copernicus")
+_COPERNICUS_CONFIG = CONFIG["clients"]["copernicus"]
 
-MONTHLY_VARIABLES = [
-    "2m_dewpoint_temperature",
-    "2m_temperature",
-    "total_precipitation",
-]
+CDS_URL = _COPERNICUS_CONFIG["cds_url"]
+ERA5_LAND_MONTHLY_DATASET = _COPERNICUS_CONFIG["era5_land_monthly_dataset"]
+DEFAULT_DATA_DIR = project_path(_COPERNICUS_CONFIG["default_data_dir"])
+MONTHLY_VARIABLES = list(_COPERNICUS_CONFIG["monthly_variables"])
 
 
 @dataclass(frozen=True)

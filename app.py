@@ -11,8 +11,22 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from project.agent import make_aid_decision  # noqa: E402
+from project.agent import (
+    REGION_POPULATIONS,
+    TOTAL_BUDGET,
+    make_aid_decision,
+    population_weighted_budget,
+)  # noqa: E402
 from project.clients.sybilion import SybilionClient, monthly_timeseries  # noqa: E402
+from project.config import (  # noqa: E402
+    CONFIG_PATH,
+    get_config_value,
+    load_config,
+    parse_config_value,
+    pretty_config,
+    set_config_value,
+)
+from project.domain.regions import water_region_districts  # noqa: E402
 from project.helper.predictions import (  # noqa: E402
     DEFAULT_PRICE_HORIZON,
     DEFAULT_WEATHER_HORIZON,
@@ -25,6 +39,8 @@ from project.helper.predictions import (  # noqa: E402
     summarize_weather,
 )
 
+DEFAULT_AGENT_REGIONS = tuple(water_region_districts)
+
 
 def status(message: str) -> None:
     print(f"[app] {message}", flush=True)
@@ -32,6 +48,11 @@ def status(message: str) -> None:
 
 def display_region_name(region_name: str) -> str:
     return region_name.replace("_", " ").replace("-", " ").title()
+
+
+def normalize_agent_regions(args: argparse.Namespace) -> list[str]:
+    selected = args.agent_regions or ([args.agent_region] if args.agent_region else DEFAULT_AGENT_REGIONS)
+    return [display_region_name(region_name) for region_name in selected]
 
 
 def print_series_summary(name: str, history: pd.DataFrame, forecast: pd.DataFrame) -> None:
@@ -62,15 +83,27 @@ def print_pipeline_metrics(weather_result, water_result, cmb_result, fuel_result
 
 
 def print_agent_decision(decision) -> None:
-    print("\n=== Agent Decision ===")
     print(f"region: {decision.region}")
-    print(f"selected_cargo: {decision.selected_cargo}")
-    print("allocation:")
-    for cargo_type, units in decision.allocation.items():
-        print(f"  {cargo_type}: {units}")
+    print(f"regional_budget: {decision.regional_budget:.2f}")
+    print("budget_allocation:")
+    for cargo_type, amount in decision.budget_allocation.items():
+        print(f"  {cargo_type}: {amount:.2f}")
     print("scores:")
     for cargo_type, score in decision.scores.items():
         print(f"  {cargo_type}: {score:.4f}")
+
+
+def print_agent_decisions(decisions: dict[str, object]) -> None:
+    print("\n=== Agent Decisions ===")
+    total_budget = sum(decision.regional_budget for decision in decisions.values())
+    print(f"total_budget: {total_budget:.2f}")
+    for decision in decisions.values():
+        print("")
+        print_agent_decision(decision)
+
+
+def weather_for_agent_region(region_name: str, weather_result):
+    return weather_result if region_name.lower().replace(" ", "_") == "gedo" else None
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,8 +111,26 @@ def parse_args() -> argparse.Namespace:
         description=(
             "Run Somalia forecasts for weather, water prices, and food/CMB prices. "
             "--mode cache uses existing data and cached Sybilion forecasts; "
-            "--mode refresh fetches Copernicus weather and submits live Sybilion jobs."
+            "--mode refresh fetches Copernicus weather and submits live Sybilion jobs. "
+            "Use config-show to print constants or config-set <key> <value> to update one."
         )
+    )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["run", "config-show", "config-set"],
+        default="run",
+        help="Command to execute. Defaults to run for backwards-compatible pipeline usage.",
+    )
+    parser.add_argument(
+        "config_key",
+        nargs="?",
+        help="Dotted config key for config-set, e.g. agent.total_budget.",
+    )
+    parser.add_argument(
+        "config_value",
+        nargs="?",
+        help='New JSON value for config-set, e.g. 12000000 or "[\\"Gedo\\", \\"Bay\\"]".',
     )
     parser.add_argument("--mode", choices=["cache", "refresh"], default="cache")
     parser.add_argument("--data-source", choices=["cache", "live"], help="Override weather data source.")
@@ -91,8 +142,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-s", type=float, default=900.0)
     parser.add_argument("--water-aggregation", choices=["mean", "median"], default="mean")
     parser.add_argument("--fuel-aggregation", choices=["mean", "median"], default="median")
-    parser.add_argument("--agent-region", default="Gedo")
-    parser.add_argument("--agent-units", type=int, default=100)
+    parser.add_argument(
+        "--agent-region",
+        help="Single region for the agent. Kept for quick one-region runs.",
+    )
+    parser.add_argument(
+        "--agent-regions",
+        nargs="+",
+        help="Regions for the agent. Defaults to all configured water regions: Bay Bakool Gedo.",
+    )
+    parser.add_argument(
+        "--agent-units",
+        type=float,
+        default=TOTAL_BUDGET,
+        help="Deprecated alias for --agent-budget.",
+    )
+    parser.add_argument(
+        "--agent-budget",
+        type=float,
+        help="Total money budget for all agent regions. Budget is first weighted by population.",
+    )
     parser.add_argument(
         "--agent-forecast-source",
         choices=["cache", "live", "local"],
@@ -109,10 +178,39 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def show_config(args: argparse.Namespace) -> None:
+    if args.config_key:
+        try:
+            value = get_config_value(load_config(), args.config_key)
+        except KeyError as exc:
+            raise SystemExit(f"Unknown config key: {exc.args[0]}") from exc
+        print(pretty_config(value) if isinstance(value, (dict, list)) else value)
+        return
+    print(pretty_config())
+
+
+def set_config(args: argparse.Namespace) -> None:
+    if not args.config_key or args.config_value is None:
+        raise SystemExit("config-set requires <key> and <value>.")
+
+    value = parse_config_value(args.config_value)
+    try:
+        old_value, new_value = set_config_value(args.config_key, value)
+    except KeyError as exc:
+        raise SystemExit(f"Unknown config key: {exc.args[0]}") from exc
+    except TypeError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    print(f"Updated {args.config_key} in {CONFIG_PATH}:")
+    print(f"  old: {old_value!r}")
+    print(f"  new: {new_value!r}")
+
+
 def run_pipeline(args: argparse.Namespace):
     data_source = args.data_source or ("live" if args.mode == "refresh" else "cache")
     forecast_source = args.forecast_source or ("live" if args.mode == "refresh" else "cache")
     agent_forecast_source = args.agent_forecast_source or forecast_source
+    agent_budget = args.agent_budget if args.agent_budget is not None else args.agent_units
     status(f"mode={args.mode}, data_source={data_source}, forecast_source={forecast_source}")
 
     needs_live_client = "live" in {
@@ -169,47 +267,57 @@ def run_pipeline(args: argparse.Namespace):
 
     print_pipeline_metrics(weather_result, water_result, cmb_result, fuel_result)
 
-    agent_decision = None
+    agent_decisions = {}
     if not args.skip_agent:
-        agent_region = display_region_name(args.agent_region)
+        agent_regions = normalize_agent_regions(args)
         status(
             "Building agent decision from regional predictions: "
-            f"region={agent_region}, source={agent_forecast_source}"
+            f"regions={', '.join(agent_regions)}, source={agent_forecast_source}"
         )
-        regional_water_result = predict_regional_water_price(
-            agent_region,
-            source=agent_forecast_source,
-            client=client if agent_forecast_source == "live" else None,
-            horizon=args.price_horizon,
-            poll_s=args.poll_s,
-            timeout_s=args.timeout_s,
-            top_drivers=args.top_drivers,
-        )
-        regional_food_result = predict_regional_food_price(
-            agent_region,
-            source=agent_forecast_source,
-            client=client if agent_forecast_source == "live" else None,
-            horizon=args.price_horizon,
-            poll_s=args.poll_s,
-            timeout_s=args.timeout_s,
-            top_drivers=args.top_drivers,
-        )
-        agent_decision = make_aid_decision(
-            region=agent_region,
-            water_prediction=regional_water_result,
-            food_prediction=regional_food_result,
-            fuel_prediction=fuel_result,
-            weather_prediction=weather_result,
-            total_units=args.agent_units,
-        )
-        print_agent_decision(agent_decision)
+        region_budgets = population_weighted_budget(agent_regions, total_budget=agent_budget)
+        for agent_region in agent_regions:
+            regional_water_result = predict_regional_water_price(
+                agent_region,
+                source=agent_forecast_source,
+                client=client if agent_forecast_source == "live" else None,
+                horizon=args.price_horizon,
+                poll_s=args.poll_s,
+                timeout_s=args.timeout_s,
+                top_drivers=args.top_drivers,
+            )
+            regional_food_result = predict_regional_food_price(
+                agent_region,
+                source=agent_forecast_source,
+                client=client if agent_forecast_source == "live" else None,
+                horizon=args.price_horizon,
+                poll_s=args.poll_s,
+                timeout_s=args.timeout_s,
+                top_drivers=args.top_drivers,
+            )
+            agent_decisions[agent_region] = make_aid_decision(
+                region=agent_region,
+                water_prediction=regional_water_result,
+                food_prediction=regional_food_result,
+                fuel_prediction=fuel_result,
+                weather_prediction=weather_for_agent_region(agent_region, weather_result),
+                budget=region_budgets[agent_region],
+                population=REGION_POPULATIONS[agent_region],
+            )
+        print_agent_decisions(agent_decisions)
 
     status("Pipeline finished.")
-    return weather_result, water_result, cmb_result, fuel_result, agent_decision
+    return weather_result, water_result, cmb_result, fuel_result, agent_decisions
 
 
 def main() -> None:
-    run_pipeline(parse_args())
+    args = parse_args()
+    if args.command == "config-show":
+        show_config(args)
+        return
+    if args.command == "config-set":
+        set_config(args)
+        return
+    run_pipeline(args)
 
 
 if __name__ == "__main__":

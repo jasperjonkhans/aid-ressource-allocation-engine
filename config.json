@@ -1,0 +1,256 @@
+{
+  "agent": {
+    "cargo_types": [
+      "water_supplies",
+      "water_infrastructure",
+      "food_supplies",
+      "fuel"
+    ],
+    "drought_weight": 0.7,
+    "good_unit_costs": {
+      "food_supplies": 2.0,
+      "fuel": 3.0,
+      "water_infrastructure": 6.0,
+      "water_supplies": 1.0
+    },
+    "level_weight": 0.8,
+    "region_accessibility": {
+      "Bakool": 1.0,
+      "Bay": 1.0,
+      "Gedo": 0.7
+    },
+    "region_populations": {
+      "Bakool": 564958,
+      "Bay": 1297550,
+      "Gedo": 1014335
+    },
+    "slope_weight": 2.5,
+    "softmax_temperature": 1.5,
+    "total_budget": 10000000.0,
+    "uncertainty_weight": 0.3,
+    "weights": {
+      "food_supplies": 1.15,
+      "fuel": 0.9,
+      "water_infrastructure": 0.85,
+      "water_supplies": 1.2
+    }
+  },
+  "clients": {
+    "copernicus": {
+      "cds_url": "https://cds.climate.copernicus.eu/api",
+      "default_data_dir": "project/data/copernicus",
+      "era5_land_monthly_dataset": "reanalysis-era5-land-monthly-means",
+      "monthly_variables": [
+        "2m_dewpoint_temperature",
+        "2m_temperature",
+        "total_precipitation"
+      ]
+    },
+    "sybilion": {
+      "api_base": "https://api.sybilion.dev/api/v1",
+      "default_token_paths": [
+        "API_KEY.txt",
+        "project/API_KEY.txt"
+      ]
+    }
+  },
+  "domain": {
+    "bakool_districts": [
+      "Xudur",
+      "Ceel Barde",
+      "Tayeeglow",
+      "Waajid",
+      "Rab Dhuure"
+    ],
+    "bakool_polygon": [
+      [
+        43.9973028,
+        2.87405
+      ],
+      [
+        44.0933833,
+        2.8634333
+      ],
+      [
+        44.1392917,
+        2.7176361
+      ],
+      [
+        44.0702306,
+        2.6722278
+      ],
+      [
+        43.9708306,
+        2.8155222
+      ]
+    ],
+    "bay_districts": [
+      "Baydhaba",
+      "Buur Hakaba",
+      "Diinsoor",
+      "Qansax Dheere"
+    ],
+    "burhakaba_polygon": [
+      [
+        44.79105,
+        3.2708833
+      ],
+      [
+        43.1210972,
+        3.6792806
+      ],
+      [
+        43.0259083,
+        4.5471333
+      ],
+      [
+        44.5900639,
+        4.9476389
+      ],
+      [
+        44.7774833,
+        3.4252056
+      ]
+    ],
+    "gedo_districts": [
+      "Garbahaarey",
+      "Baardheere",
+      "Belet Xaawo",
+      "Ceel Waaq",
+      "Doolow",
+      "Luuq"
+    ],
+    "gedo_polygon": [
+      [
+        42.8903167,
+        4.3140417
+      ],
+      [
+        43.0996111,
+        3.0833333
+      ],
+      [
+        41.5229722,
+        1.2651944
+      ],
+      [
+        40.9924083,
+        2.7923778
+      ],
+      [
+        42.0586444,
+        4.1903472
+      ]
+    ]
+  },
+  "predictions": {
+    "cmb_keywords": [
+      "Somalia food basket prices",
+      "red sorghum prices Somalia",
+      "maize prices Somalia",
+      "imported rice prices Somalia",
+      "wheat flour prices Somalia",
+      "vegetable oil prices Somalia",
+      "sugar prices Somalia",
+      "diesel fuel prices Somalia",
+      "petrol transport costs Somalia",
+      "Somali shilling USD exchange rate",
+      "Somalia inflation consumer prices",
+      "global cereal prices",
+      "Black Sea grain exports",
+      "Somalia drought conditions",
+      "Gu rainfall Somalia",
+      "Deyr rainfall Somalia",
+      "Horn of Africa food security",
+      "Somalia conflict displacement",
+      "Somalia port import volumes",
+      "Somalia humanitarian food assistance"
+    ],
+    "cmb_out_dir": "somalia/data/sybilion_cmb",
+    "cmb_raw_path": "somalia/data/fsnau_cmb_total_basket_cmb_sorghum.csv",
+    "default_price_horizon": 6,
+    "default_weather_horizon": 12,
+    "fuel_keywords": [
+      "global fuel prices",
+      "diesel prices Somalia",
+      "petrol prices Somalia",
+      "Somalia transport costs",
+      "Somalia food market fuel costs",
+      "global crude oil prices",
+      "Brent crude oil",
+      "diesel fuel imports Somalia",
+      "petrol transport costs Somalia",
+      "Somali shilling USD exchange rate",
+      "Horn of Africa logistics",
+      "Somalia inflation consumer prices",
+      "Somalia port import volumes",
+      "Somalia drought conditions"
+    ],
+    "fuel_out_dir": "somalia/data/sybilion_fuel",
+    "fuel_raw_path": "somalia/data/wfp_food_prices_som.csv",
+    "regional_food_keywords": [
+      "Somalia regional food prices",
+      "Somalia WFP market prices",
+      "Somalia food security",
+      "Somalia cereal prices",
+      "Somalia milk prices",
+      "Somalia sugar prices",
+      "Somalia vegetable oil prices",
+      "Somalia market access",
+      "Somali shilling USD exchange rate",
+      "Horn of Africa food security",
+      "Somalia drought conditions",
+      "Gu rainfall Somalia",
+      "Deyr rainfall Somalia"
+    ],
+    "regional_food_out_dir": "somalia/data/sybilion_regional_food",
+    "regional_food_raw_path": "somalia/data/wfp_food_prices_som.csv",
+    "regional_water_out_dir": "project/data/somalia/water/sybilion/regional",
+    "water_keywords": [
+      "Somalia water prices",
+      "Somalia water trucking costs",
+      "Somalia water scarcity",
+      "Somalia drought conditions",
+      "Horn of Africa drought",
+      "Gu rainfall Somalia",
+      "Deyr rainfall Somalia",
+      "Somalia borehole water supply",
+      "Somalia shallow wells",
+      "Somalia water access",
+      "Somalia diesel fuel prices",
+      "Somalia petrol transport costs",
+      "Somali shilling USD exchange rate",
+      "Somalia inflation consumer prices",
+      "Somalia conflict displacement",
+      "Somalia IDP settlements",
+      "Somalia humanitarian WASH assistance",
+      "Somalia cholera outbreaks",
+      "Somalia river levels",
+      "Somalia livestock water demand"
+    ],
+    "water_out_dir": "project/data/somalia/water/sybilion",
+    "water_raw_path": "project/data/somalia/water/som_water_price_2011_2022.csv",
+    "weather_dir": "project/data/weather",
+    "weather_metrics": {
+      "rainfall_mm_per_day": {
+        "label": "Rainfall (mm/day)",
+        "strictly_positive": false,
+        "title": "Gedo monthly rainfall",
+        "transform": "log1p"
+      },
+      "relative_humidity_pct": {
+        "label": "Relative humidity (%)",
+        "strictly_positive": true,
+        "title": "Gedo monthly relative humidity",
+        "transform": null
+      },
+      "temperature_avg_c": {
+        "label": "Average temperature (C)",
+        "strictly_positive": false,
+        "title": "Gedo monthly average temperature",
+        "transform": null
+      }
+    },
+    "weather_out_dir": "project/data/weather/sybilion_gedo"
+  }
+}

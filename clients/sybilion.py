@@ -10,9 +10,12 @@ from typing import Iterable
 import pandas as pd
 import requests
 
+from project.config import CONFIG
 
-API_BASE = "https://api.sybilion.dev/api/v1"
-DEFAULT_TOKEN_PATHS = ("API_KEY.txt", "project/API_KEY.txt")
+_SYBILION_CONFIG = CONFIG["clients"]["sybilion"]
+
+API_BASE = _SYBILION_CONFIG["api_base"]
+DEFAULT_TOKEN_PATHS = tuple(_SYBILION_CONFIG["default_token_paths"])
 
 
 @dataclass(frozen=True)

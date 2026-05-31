@@ -10,13 +10,16 @@ API_KEY.txt
 *.key
 *.pem
 
-# Data and Notebooks outputs
-data/
-*.csv
+# Cached data and generated prediction outputs
 *.nc
 *.nc.db
 *.h5
 *.hdf5
+data/weather/gedo_monthly_weather_*.csv
+data/weather/gedo_monthly_weather_*.png
+data/weather/sybilion_gedo/
+data/somalia/water/sybilion/
+data/sentinel2/
 
 # Cache and IDE
 __pycache__/

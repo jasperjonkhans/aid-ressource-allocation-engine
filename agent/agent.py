@@ -6,25 +6,26 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from project.config import CONFIG
 
-CARGO_TYPES = (
-    "water_supplies",
-    "water_infrastructure",
-    "food_supplies",
-    "fuel",
-)
+_AGENT_CONFIG = CONFIG["agent"]
 
-WEIGHT_WATER_SUPPLIES = 1.20
-WEIGHT_WATER_INFRASTRUCTURE = 0.85
-WEIGHT_FOOD_SUPPLIES = 1.15
-WEIGHT_FUEL = 0.90
+CARGO_TYPES = tuple(_AGENT_CONFIG["cargo_types"])
+WEIGHT_WATER_SUPPLIES = float(_AGENT_CONFIG["weights"]["water_supplies"])
+WEIGHT_WATER_INFRASTRUCTURE = float(_AGENT_CONFIG["weights"]["water_infrastructure"])
+WEIGHT_FOOD_SUPPLIES = float(_AGENT_CONFIG["weights"]["food_supplies"])
+WEIGHT_FUEL = float(_AGENT_CONFIG["weights"]["fuel"])
 
-SLOPE_WEIGHT = 2.5
-LEVEL_WEIGHT = 0.8
-UNCERTAINTY_WEIGHT = 0.3
-DROUGHT_WEIGHT = 0.7
-SOFTMAX_TEMPERATURE = 1.5
-TOTAL_UNITS = 100
+SLOPE_WEIGHT = float(_AGENT_CONFIG["slope_weight"])
+LEVEL_WEIGHT = float(_AGENT_CONFIG["level_weight"])
+UNCERTAINTY_WEIGHT = float(_AGENT_CONFIG["uncertainty_weight"])
+DROUGHT_WEIGHT = float(_AGENT_CONFIG["drought_weight"])
+SOFTMAX_TEMPERATURE = float(_AGENT_CONFIG["softmax_temperature"])
+TOTAL_BUDGET = float(_AGENT_CONFIG["total_budget"])
+TOTAL_UNITS = int(TOTAL_BUDGET)
+GOOD_UNIT_COSTS = {key: float(value) for key, value in _AGENT_CONFIG["good_unit_costs"].items()}
+REGION_POPULATIONS = {key: int(value) for key, value in _AGENT_CONFIG["region_populations"].items()}
+REGION_ACCESSIBILITY = {key: float(value) for key, value in _AGENT_CONFIG["region_accessibility"].items()}
 
 
 @dataclass(frozen=True)
@@ -39,9 +40,15 @@ class AgentPredictionBundle:
 @dataclass(frozen=True)
 class AgentDecision:
     region: str
-    allocation: dict[str, int]
+    allocation: dict[str, float]
+    budget_allocation: dict[str, float]
     scores: dict[str, float]
     selected_cargo: str
+    regional_budget: float
+    accessibility: float
+    effective_unit_costs: dict[str, float]
+    regional_units: float
+    population: int | None = None
     reasoning: None = None
 
 
@@ -210,31 +217,157 @@ def compute_scores(features: dict[str, float]) -> dict[str, float]:
     }
 
 
-def allocate(scores: dict[str, float], total_units: int = TOTAL_UNITS) -> dict[str, int]:
-    shares = softmax(scores)
-    allocation = {cargo_type: int(round(shares.get(cargo_type, 0.0) * total_units)) for cargo_type in CARGO_TYPES}
-    diff = total_units - sum(allocation.values())
+def _region_lookup(region_name: str, values: dict[str, Any]) -> Any | None:
+    normalized = region_name.lower().replace("_", " ").replace("-", " ")
+    for region, value in values.items():
+        if region.lower().replace("_", " ").replace("-", " ") == normalized:
+            return value
+    return None
+
+
+def accessibility_for_region(
+    region_name: str,
+    *,
+    accessibilities: dict[str, float] | None = None,
+) -> float:
+    accessibilities = accessibilities or REGION_ACCESSIBILITY
+    accessibility = _region_lookup(region_name, accessibilities)
+    if accessibility is None:
+        return 1.0
+    if accessibility <= 0:
+        raise ValueError(f"Accessibility must be positive for {region_name!r}.")
+    return float(accessibility)
+
+
+def effective_unit_costs(
+    *,
+    accessibility: float,
+    unit_costs: dict[str, float] | None = None,
+) -> dict[str, float]:
+    if accessibility <= 0:
+        raise ValueError("Accessibility must be positive.")
+    unit_costs = unit_costs or GOOD_UNIT_COSTS
+    return {
+        cargo_type: float(unit_costs[cargo_type]) / accessibility
+        for cargo_type in CARGO_TYPES
+    }
+
+
+def allocate_budget(
+    scores: dict[str, float],
+    *,
+    budget: float = TOTAL_BUDGET,
+    unit_costs: dict[str, float] | None = None,
+    accessibility: float = 1.0,
+) -> tuple[dict[str, float], dict[str, float], dict[str, float]]:
+    costs = effective_unit_costs(accessibility=accessibility, unit_costs=unit_costs)
+    budget_pressure = {
+        cargo_type: scores[cargo_type] * costs[cargo_type]
+        for cargo_type in CARGO_TYPES
+    }
+    shares = softmax(budget_pressure)
+    budget_allocation = {
+        cargo_type: round(shares.get(cargo_type, 0.0) * budget, 2)
+        for cargo_type in CARGO_TYPES
+    }
+    diff = round(budget - sum(budget_allocation.values()), 2)
     if diff:
-        best_cargo = max(scores, key=scores.get)
-        allocation[best_cargo] += diff
+        best_cargo = max(budget_pressure, key=budget_pressure.get)
+        budget_allocation[best_cargo] = round(budget_allocation[best_cargo] + diff, 2)
+
+    units = {
+        cargo_type: round(budget_allocation[cargo_type] / costs[cargo_type], 2)
+        for cargo_type in CARGO_TYPES
+    }
+    return budget_allocation, units, costs
+
+
+def allocate(scores: dict[str, float], total_units: int = TOTAL_UNITS) -> dict[str, float]:
+    _, units, _ = allocate_budget(scores, budget=float(total_units))
+    return units
+
+
+def _population_for_region(region_name: str, populations: dict[str, int]) -> int | None:
+    return _region_lookup(region_name, populations)
+
+
+def population_weighted_budget(
+    regions: list[str],
+    *,
+    total_budget: float = TOTAL_BUDGET,
+    populations: dict[str, int] | None = None,
+) -> dict[str, float]:
+    populations = populations or REGION_POPULATIONS
+    region_populations = {
+        region: _population_for_region(region, populations)
+        for region in regions
+    }
+    missing = [region for region, population in region_populations.items() if population is None]
+    if missing:
+        raise ValueError(f"Missing population for regions: {missing}")
+
+    total_population = sum(population for population in region_populations.values() if population is not None)
+    if total_population <= 0:
+        raise ValueError("Total population must be positive.")
+
+    allocation = {
+        region: round((population or 0) / total_population * total_budget, 2)
+        for region, population in region_populations.items()
+    }
+    diff = round(total_budget - sum(allocation.values()), 2)
+    if diff:
+        largest_region = max(region_populations, key=lambda region: region_populations[region] or 0)
+        allocation[largest_region] = round(allocation[largest_region] + diff, 2)
     return allocation
+
+
+def population_weighted_units(
+    regions: list[str],
+    *,
+    total_units: int = TOTAL_UNITS,
+    populations: dict[str, int] | None = None,
+) -> dict[str, int]:
+    budgets = population_weighted_budget(
+        regions,
+        total_budget=float(total_units),
+        populations=populations,
+    )
+    return {region: int(round(budget)) for region, budget in budgets.items()}
 
 
 def decide(
     predictions: AgentPredictionBundle,
     *,
-    total_units: int = TOTAL_UNITS,
+    budget: float = TOTAL_BUDGET,
+    total_units: int | None = None,
+    population: int | None = None,
+    accessibility: float | None = None,
+    unit_costs: dict[str, float] | None = None,
 ) -> AgentDecision:
+    if total_units is not None:
+        budget = float(total_units)
     features = compute_features(predictions)
     scores = compute_scores(features)
-    allocation = allocate(scores, total_units=total_units)
+    accessibility = accessibility if accessibility is not None else accessibility_for_region(predictions.region)
+    budget_allocation, allocation, costs = allocate_budget(
+        scores,
+        budget=budget,
+        unit_costs=unit_costs,
+        accessibility=accessibility,
+    )
     selected_cargo = max(scores, key=scores.get)
 
     return AgentDecision(
         region=predictions.region,
         allocation=allocation,
+        budget_allocation=budget_allocation,
         scores={key: float(value) for key, value in scores.items()},
         selected_cargo=selected_cargo,
+        regional_budget=budget,
+        accessibility=accessibility,
+        effective_unit_costs=costs,
+        regional_units=round(sum(allocation.values()), 2),
+        population=population,
         reasoning=None,
     )
 
@@ -246,8 +379,14 @@ def make_aid_decision(
     food_prediction: Any,
     fuel_prediction: Any | None = None,
     weather_prediction: Any | None = None,
-    total_units: int = TOTAL_UNITS,
+    budget: float | None = None,
+    total_units: int | None = None,
+    population: int | None = None,
+    accessibility: float | None = None,
+    unit_costs: dict[str, float] | None = None,
 ) -> AgentDecision:
+    if budget is None:
+        budget = float(total_units if total_units is not None else TOTAL_BUDGET)
     predictions = AgentPredictionBundle(
         region=region,
         water=water_prediction,
@@ -255,4 +394,10 @@ def make_aid_decision(
         fuel=fuel_prediction,
         weather=weather_prediction,
     )
-    return decide(predictions, total_units=total_units)
+    return decide(
+        predictions,
+        budget=budget,
+        population=population,
+        accessibility=accessibility,
+        unit_costs=unit_costs,
+    )

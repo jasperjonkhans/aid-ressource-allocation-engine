@@ -23,125 +23,34 @@ from project.clients.sybilion import (
     forecast_to_frame,
     monthly_timeseries,
 )
+from project.config import CONFIG, project_path
 from project.domain.regions import GEDO_POLYGON, water_region_districts
 
-WEATHER_DIR = PROJECT_ROOT / "project" / "data" / "weather"
-WEATHER_OUT_DIR = WEATHER_DIR / "sybilion_gedo"
+_PREDICTIONS_CONFIG = CONFIG["predictions"]
 
-WATER_RAW_PATH = PROJECT_ROOT / "project" / "data" / "somalia" / "water" / "som_water_price_2011_2022.csv"
-WATER_OUT_DIR = PROJECT_ROOT / "project" / "data" / "somalia" / "water" / "sybilion"
-REGIONAL_WATER_OUT_DIR = WATER_OUT_DIR / "regional"
+WEATHER_DIR = project_path(_PREDICTIONS_CONFIG["weather_dir"])
+WEATHER_OUT_DIR = project_path(_PREDICTIONS_CONFIG["weather_out_dir"])
 
-CMB_RAW_PATH = PROJECT_ROOT / "somalia" / "data" / "fsnau_cmb_total_basket_cmb_sorghum.csv"
-CMB_OUT_DIR = PROJECT_ROOT / "somalia" / "data" / "sybilion_cmb"
+WATER_RAW_PATH = project_path(_PREDICTIONS_CONFIG["water_raw_path"])
+WATER_OUT_DIR = project_path(_PREDICTIONS_CONFIG["water_out_dir"])
+REGIONAL_WATER_OUT_DIR = project_path(_PREDICTIONS_CONFIG["regional_water_out_dir"])
 
-FUEL_RAW_PATH = PROJECT_ROOT / "somalia" / "data" / "wfp_food_prices_som.csv"
-FUEL_OUT_DIR = PROJECT_ROOT / "somalia" / "data" / "sybilion_fuel"
-REGIONAL_FOOD_RAW_PATH = FUEL_RAW_PATH
-REGIONAL_FOOD_OUT_DIR = PROJECT_ROOT / "somalia" / "data" / "sybilion_regional_food"
+CMB_RAW_PATH = project_path(_PREDICTIONS_CONFIG["cmb_raw_path"])
+CMB_OUT_DIR = project_path(_PREDICTIONS_CONFIG["cmb_out_dir"])
 
-DEFAULT_WEATHER_HORIZON = 12
-DEFAULT_PRICE_HORIZON = 6
+FUEL_RAW_PATH = project_path(_PREDICTIONS_CONFIG["fuel_raw_path"])
+FUEL_OUT_DIR = project_path(_PREDICTIONS_CONFIG["fuel_out_dir"])
+REGIONAL_FOOD_RAW_PATH = project_path(_PREDICTIONS_CONFIG["regional_food_raw_path"])
+REGIONAL_FOOD_OUT_DIR = project_path(_PREDICTIONS_CONFIG["regional_food_out_dir"])
 
-WEATHER_METRICS = {
-    "rainfall_mm_per_day": {
-        "label": "Rainfall (mm/day)",
-        "title": "Gedo monthly rainfall",
-        "strictly_positive": False,
-        "transform": "log1p",
-    },
-    "temperature_avg_c": {
-        "label": "Average temperature (C)",
-        "title": "Gedo monthly average temperature",
-        "strictly_positive": False,
-        "transform": None,
-    },
-    "relative_humidity_pct": {
-        "label": "Relative humidity (%)",
-        "title": "Gedo monthly relative humidity",
-        "strictly_positive": True,
-        "transform": None,
-    },
-}
+DEFAULT_WEATHER_HORIZON = int(_PREDICTIONS_CONFIG["default_weather_horizon"])
+DEFAULT_PRICE_HORIZON = int(_PREDICTIONS_CONFIG["default_price_horizon"])
 
-WATER_KEYWORDS = [
-    "Somalia water prices",
-    "Somalia water trucking costs",
-    "Somalia water scarcity",
-    "Somalia drought conditions",
-    "Horn of Africa drought",
-    "Gu rainfall Somalia",
-    "Deyr rainfall Somalia",
-    "Somalia borehole water supply",
-    "Somalia shallow wells",
-    "Somalia water access",
-    "Somalia diesel fuel prices",
-    "Somalia petrol transport costs",
-    "Somali shilling USD exchange rate",
-    "Somalia inflation consumer prices",
-    "Somalia conflict displacement",
-    "Somalia IDP settlements",
-    "Somalia humanitarian WASH assistance",
-    "Somalia cholera outbreaks",
-    "Somalia river levels",
-    "Somalia livestock water demand",
-]
-
-CMB_KEYWORDS = [
-    "Somalia food basket prices",
-    "red sorghum prices Somalia",
-    "maize prices Somalia",
-    "imported rice prices Somalia",
-    "wheat flour prices Somalia",
-    "vegetable oil prices Somalia",
-    "sugar prices Somalia",
-    "diesel fuel prices Somalia",
-    "petrol transport costs Somalia",
-    "Somali shilling USD exchange rate",
-    "Somalia inflation consumer prices",
-    "global cereal prices",
-    "Black Sea grain exports",
-    "Somalia drought conditions",
-    "Gu rainfall Somalia",
-    "Deyr rainfall Somalia",
-    "Horn of Africa food security",
-    "Somalia conflict displacement",
-    "Somalia port import volumes",
-    "Somalia humanitarian food assistance",
-]
-
-FUEL_KEYWORDS = [
-    "global fuel prices",
-    "diesel prices Somalia",
-    "petrol prices Somalia",
-    "Somalia transport costs",
-    "Somalia food market fuel costs",
-    "global crude oil prices",
-    "Brent crude oil",
-    "diesel fuel imports Somalia",
-    "petrol transport costs Somalia",
-    "Somali shilling USD exchange rate",
-    "Horn of Africa logistics",
-    "Somalia inflation consumer prices",
-    "Somalia port import volumes",
-    "Somalia drought conditions",
-]
-
-REGIONAL_FOOD_KEYWORDS = [
-    "Somalia regional food prices",
-    "Somalia WFP market prices",
-    "Somalia food security",
-    "Somalia cereal prices",
-    "Somalia milk prices",
-    "Somalia sugar prices",
-    "Somalia vegetable oil prices",
-    "Somalia market access",
-    "Somali shilling USD exchange rate",
-    "Horn of Africa food security",
-    "Somalia drought conditions",
-    "Gu rainfall Somalia",
-    "Deyr rainfall Somalia",
-]
+WEATHER_METRICS = dict(_PREDICTIONS_CONFIG["weather_metrics"])
+WATER_KEYWORDS = list(_PREDICTIONS_CONFIG["water_keywords"])
+CMB_KEYWORDS = list(_PREDICTIONS_CONFIG["cmb_keywords"])
+FUEL_KEYWORDS = list(_PREDICTIONS_CONFIG["fuel_keywords"])
+REGIONAL_FOOD_KEYWORDS = list(_PREDICTIONS_CONFIG["regional_food_keywords"])
 
 
 @dataclass(frozen=True)
