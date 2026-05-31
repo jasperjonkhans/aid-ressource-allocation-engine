@@ -112,25 +112,84 @@ def print_agent_decision(decision, *, percent_mode: bool = False) -> None:
     print("scores:")
     for cargo_type, score in decision.scores.items():
         print(f"  {cargo_type}: {score:.4f}")
-    if decision.reasoning:
-        print("reasoning:")
-        for cargo_type, reasons in decision.reasoning.items():
-            print(f"  {cargo_type}:")
-            for index, reason in enumerate(reasons, start=1):
-                print(f"    {index}. {reason['text']}")
-    if decision.formulas:
-        print("formulas:")
-        for name, formula in decision.formulas.items():
-            print(f"  {name}: {formula}")
 
 
-def print_agent_decisions(decisions: dict[str, object]) -> None:
+def _top_reason_for(decision, cargo_type: str) -> str | None:
+    if not decision.reasoning:
+        return None
+    reasons = decision.reasoning.get(cargo_type) or []
+    if not reasons:
+        return None
+    return str(reasons[0]["text"])
+
+
+def _cargo_totals(decisions: dict[str, object]) -> dict[str, float]:
+    cargo_types = next(iter(decisions.values())).budget_allocation.keys()
+    return {
+        cargo_type: sum(decision.budget_allocation[cargo_type] for decision in decisions.values())
+        for cargo_type in cargo_types
+    }
+
+
+def print_overall_reasoning(decisions: dict[str, object], *, percent_mode: bool) -> None:
+    if not decisions:
+        return
+
+    cargo_totals = _cargo_totals(decisions)
+    top_cargo = max(cargo_totals, key=cargo_totals.get)
+    top_cargo_region = max(decisions.values(), key=lambda decision: decision.budget_allocation[top_cargo])
+    top_region = max(decisions.values(), key=lambda decision: decision.regional_budget)
+    top_region_cargo = max(top_region.budget_allocation, key=top_region.budget_allocation.get)
+
+    print("\n=== Overall Reasoning ===")
+    print(
+        "1. Most resources go to "
+        f"{top_cargo}: {format_budget_value(cargo_totals[top_cargo], percent_mode=percent_mode)} "
+        "overall."
+    )
+    top_cargo_reason = _top_reason_for(top_cargo_region, top_cargo)
+    if top_cargo_reason:
+        print(f"   Strongest concrete driver: {top_cargo_region.region}: {top_cargo_reason}")
+    print(
+        "2. The largest regional share goes to "
+        f"{top_region.region}: {format_budget_value(top_region.regional_budget, percent_mode=percent_mode)}."
+    )
+    if top_region.population is not None:
+        print(f"   This is driven by the population-weighted regional split: population={top_region.population}.")
+    print(
+        "3. Inside that region, the largest goods allocation is "
+        f"{top_region_cargo}: "
+        f"{format_budget_value(top_region.budget_allocation[top_region_cargo], percent_mode=percent_mode)}."
+    )
+    top_region_reason = _top_reason_for(top_region, top_region_cargo)
+    if top_region_reason:
+        print(f"   Strongest concrete driver: {top_region_reason}")
+
+
+def print_formulas_once(decisions: dict[str, object]) -> None:
+    formulas = None
+    for decision in decisions.values():
+        formulas = decision.formulas
+        if formulas:
+            break
+    if not formulas:
+        return
+    print("\n=== Formulas ===")
+    for name, formula in formulas.items():
+        print(f"{name}: {formula}")
+
+
+def print_agent_decisions(decisions: dict[str, object], *, reasoning_mode: str = "reasons") -> None:
     print("\n=== Agent Decisions ===")
     total_budget = sum(decision.regional_budget for decision in decisions.values())
     percent_mode = is_percent_budget(total_budget)
     for decision in decisions.values():
         print("")
         print_agent_decision(decision, percent_mode=percent_mode)
+    if reasoning_mode == "reasons":
+        print_overall_reasoning(decisions, percent_mode=percent_mode)
+    elif reasoning_mode == "formula":
+        print_formulas_once(decisions)
 
 
 def weather_for_agent_region(region_name: str, weather_result):
@@ -354,7 +413,7 @@ def run_pipeline(args: argparse.Namespace):
             population=REGION_POPULATIONS[agent_region],
             reasoning=args.reasoning,
         )
-    print_agent_decisions(agent_decisions)
+    print_agent_decisions(agent_decisions, reasoning_mode=args.reasoning)
 
     status("Pipeline finished.")
     return weather_result, water_result, cmb_result, fuel_result, agent_decisions

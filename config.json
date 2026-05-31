@@ -7,6 +7,12 @@
       "fuel"
     ],
     "drought_weight": 0.7,
+    "drought_temperature_weight": 1.0,
+    "drought_rainfall_weight": 1.2,
+    "drought_humidity_weight": 0.8,
+    "missing_weather_drought_score": 0.5,
+    "food_drought_weight": 0.5,
+    "fuel_cross_sector_weight": 0.5,
     "good_unit_costs": {
       "food_supplies": 2.0,
       "fuel": 3.0,

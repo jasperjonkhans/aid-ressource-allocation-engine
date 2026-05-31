@@ -2,24 +2,29 @@
 
 ## Somalia
 
-Somalia has suffered from prolonged conflict, resulting in weak infrastructure on top of that recurrent droughts, and heat waves plaege the region. As a result wate
+Somalia has suffered from prolonged conflict, resulting in weak infrastructure on top of that recurrent droughts, and heat waves plaege the region. As a result the somali population regularly suffers from water and food shortages often resulting in wide spread famines.
 
-Humanitarian organisations often struggle to detect regional crises early enough, which can lead to poor timing, inefficient resource allocation, and avoidable pressure on already limited aid budgets.
+Thats where Humanitarian organisations step in, but - funding  is limited. Moreover is it often wasted by poor ressource management. Humanitarian organisations have trouble predicting where and in which quantity certain aids will be needed.
 
-## The Data Edge
+![](README/img/somalia_famine.png)
 
-Somalia has a useful advantage for this approach: time-series data for food, water, and fuel prices is surprisingly available. Because food and water are sourced regionally, regional weather data can be used as an early indicator for drought pressure and future market stress.
+## The upside
+
+Somalia has a useful advantage: time-series data for food, water, and fuel prices is surprisingly available. 
+Because food and water are sourced regionally, regional weather data can be used as an early indicator for drought pressure and future market stress.
 
 
 ## Idea
 
-We combine regional and national market time series for food, water, and fuel prices with satellite-based weather data.
+Combine regional and national market time series for food, water, and fuel prices with satellite-based weather data.
 
-The resulting time series are sent to Sybilion for forecasting. A deterministic, rule-based agentic layer then turns those forecasts into interpretable resource-allocation signals. -> where and which trucks are sent to
+The resulting time series are sent to Sybilion for forecasting. A deterministic, rule-based agentic layer then turns those forecasts into interpretable resource-allocation signals. -> where and in which quantities which ressources are allocated to
 
 ## Case Study 
 
-we focus on ... as they are the most effected regions, especially by drought which most of the humanitarian aid ressources go to
+we focus on the 3 districts which are most affected: Gedo, Bay/Buurhakaba and Bakool all regions which are especially hit by droughts
+
+insert map of the districts
 
 ## Data And Sybilion
 
@@ -28,6 +33,8 @@ we focus on ... as they are the most effected regions, especially by drought whi
 Regional markets are used for water prices and, where available, food-price pressure.
 
 National market proxies are used for the Cost of Minimum Basket and fuel prices.
+
+![Somalia common commodities](README/img/somalia_common_commodities.png)
 
 ### Weather Data
 
@@ -88,7 +95,7 @@ python app.py config-set agent.weights.water_supplies 1.35
 See [USAGE.md](USAGE.md) for the full CLI documentation.
 
 
-## Agent Layer
+## Agent Layerfood
 
 Funding is the bottleneck. The agent receives a constant budget, distributes that budget across regions by population, then distributes each regional budget across aid classes by forecast pressure and delivery cost. The current default total budget is 100, which is treated and printed as percent allocation.
 
@@ -128,7 +135,7 @@ It returns a deterministic allocation decision across the aid classes humanitari
 - food supplies
 - fuel supplies
 
-Reasoning is deterministic and uses the same forecast-derived score components as the allocation logic. Each cargo class prints only the strongest prediction-specific drivers by default, without restating the allocation formula. Use `--reasoning formula` to print the formulas or `--reasoning off` to suppress reasoning output. The CLI defaults to all three configured agent regions; use `--agent-regions Bay Bakool Gedo` for an explicit run or `--agent-region Gedo` for a one-region run. The `--agent-budget` value is distributed across regions by population before each region's cargo allocation is computed. `--agent-units` still works as a deprecated alias.
+Reasoning is deterministic and uses the same forecast-derived score components as the allocation logic. The CLI prints one overall reasoning block that explains which goods and which region receive the largest shares, using the strongest prediction-specific drivers. Use `--reasoning formula` to print the formulas or `--reasoning off` to suppress reasoning output. The CLI defaults to all three configured agent regions; use `--agent-regions Bay Bakool Gedo` for an explicit run or `--agent-region Gedo` for a one-region run. The `--agent-budget` value is distributed across regions by population before each region's cargo allocation is computed. `--agent-units` still works as a deprecated alias.
 
 Current population weights:
 

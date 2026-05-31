@@ -20,6 +20,12 @@ SLOPE_WEIGHT = float(_AGENT_CONFIG["slope_weight"])
 LEVEL_WEIGHT = float(_AGENT_CONFIG["level_weight"])
 UNCERTAINTY_WEIGHT = float(_AGENT_CONFIG["uncertainty_weight"])
 DROUGHT_WEIGHT = float(_AGENT_CONFIG["drought_weight"])
+DROUGHT_TEMPERATURE_WEIGHT = float(_AGENT_CONFIG["drought_temperature_weight"])
+DROUGHT_RAINFALL_WEIGHT = float(_AGENT_CONFIG["drought_rainfall_weight"])
+DROUGHT_HUMIDITY_WEIGHT = float(_AGENT_CONFIG["drought_humidity_weight"])
+MISSING_WEATHER_DROUGHT_SCORE = float(_AGENT_CONFIG["missing_weather_drought_score"])
+FOOD_DROUGHT_WEIGHT = float(_AGENT_CONFIG["food_drought_weight"])
+FUEL_CROSS_SECTOR_WEIGHT = float(_AGENT_CONFIG["fuel_cross_sector_weight"])
 SOFTMAX_TEMPERATURE = float(_AGENT_CONFIG["softmax_temperature"])
 TOTAL_BUDGET = float(_AGENT_CONFIG["total_budget"])
 TOTAL_UNITS = int(TOTAL_BUDGET)
@@ -155,12 +161,16 @@ def _weather_slope(weather: Any, metric_name: str) -> float:
 
 def _drought_score(weather: Any) -> float:
     if weather is None:
-        return 0.5
+        return MISSING_WEATHER_DROUGHT_SCORE
 
     temperature = _weather_slope(weather, "temperature_avg_c")
     rainfall = _weather_slope(weather, "rainfall_mm_per_day")
     humidity = _weather_slope(weather, "relative_humidity_pct")
-    return sigmoid(temperature - 1.2 * rainfall - 0.8 * humidity)
+    return sigmoid(
+        DROUGHT_TEMPERATURE_WEIGHT * temperature
+        - DROUGHT_RAINFALL_WEIGHT * rainfall
+        - DROUGHT_HUMIDITY_WEIGHT * humidity
+    )
 
 
 def compute_features(predictions: AgentPredictionBundle) -> dict[str, float]:
@@ -259,8 +269,8 @@ def compute_score_components(features: dict[str, float]) -> dict[str, list[dict[
                 "feature": "drought_score",
                 "label": "drought pressure",
                 "value": features["drought_score"],
-                "weight": 0.5,
-                "contribution": 0.5 * features["drought_score"],
+                "weight": FOOD_DROUGHT_WEIGHT,
+                "contribution": FOOD_DROUGHT_WEIGHT * features["drought_score"],
             },
             {
                 "feature": "food_uncertainty",
@@ -289,8 +299,8 @@ def compute_score_components(features: dict[str, float]) -> dict[str, list[dict[
                 "feature": "cross_sector_pressure",
                 "label": "water and food pressure spillover",
                 "value": _cross_sector_pressure(features),
-                "weight": 0.5,
-                "contribution": 0.5 * _cross_sector_pressure(features),
+                "weight": FUEL_CROSS_SECTOR_WEIGHT,
+                "contribution": FUEL_CROSS_SECTOR_WEIGHT * _cross_sector_pressure(features),
             },
             {
                 "feature": "fuel_uncertainty",
@@ -396,8 +406,8 @@ def compute_score_components_without_fuel_cross_sector(
                 "feature": "drought_score",
                 "label": "drought pressure",
                 "value": features["drought_score"],
-                "weight": 0.5,
-                "contribution": 0.5 * features["drought_score"],
+                "weight": FOOD_DROUGHT_WEIGHT,
+                "contribution": FOOD_DROUGHT_WEIGHT * features["drought_score"],
             },
             {
                 "feature": "food_uncertainty",
@@ -504,7 +514,9 @@ def cargo_score_weights() -> dict[str, float]:
 def reasoning_formulas() -> dict[str, str]:
     return {
         "drought_score": (
-            "sigmoid(temperature_slope - 1.2 * rainfall_slope - 0.8 * humidity_slope)"
+            "sigmoid(DROUGHT_TEMPERATURE_WEIGHT * temperature_slope "
+            "- DROUGHT_RAINFALL_WEIGHT * rainfall_slope "
+            "- DROUGHT_HUMIDITY_WEIGHT * humidity_slope)"
         ),
         "water_supplies": (
             "WEIGHT_WATER_SUPPLIES * sigmoid("
@@ -519,12 +531,12 @@ def reasoning_formulas() -> dict[str, str]:
         "food_supplies": (
             "WEIGHT_FOOD_SUPPLIES * sigmoid("
             "SLOPE_WEIGHT * food_slope + LEVEL_WEIGHT * food_level "
-            "+ 0.5 * drought_score + UNCERTAINTY_WEIGHT * food_uncertainty)"
+            "+ FOOD_DROUGHT_WEIGHT * drought_score + UNCERTAINTY_WEIGHT * food_uncertainty)"
         ),
         "fuel": (
             "WEIGHT_FUEL * sigmoid("
             "SLOPE_WEIGHT * fuel_slope + LEVEL_WEIGHT * fuel_level "
-            "+ 0.5 * mean(water_pressure, structural_water_pressure, food_pressure) "
+            "+ FUEL_CROSS_SECTOR_WEIGHT * mean(water_pressure, structural_water_pressure, food_pressure) "
             "+ UNCERTAINTY_WEIGHT * fuel_uncertainty)"
         ),
         "budget_allocation": (
