@@ -20,10 +20,12 @@ from project.agent import (
 from project.clients.sybilion import SybilionClient, monthly_timeseries  # noqa: E402
 from project.config import (  # noqa: E402
     CONFIG_PATH,
+    flatten_config_values,
+    format_config_value,
     get_config_value,
+    human_readable_agent_config,
     load_config,
     parse_config_value,
-    pretty_config,
     set_config_value,
 )
 from project.domain.regions import water_region_districts  # noqa: E402
@@ -44,6 +46,12 @@ DEFAULT_AGENT_REGIONS = tuple(water_region_districts)
 
 def status(message: str) -> None:
     print(f"[app] {message}", flush=True)
+
+
+def format_usd(value: float) -> str:
+    formatted = f"{value:,.2f}"
+    formatted = formatted.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"${formatted}"
 
 
 def display_region_name(region_name: str) -> str:
@@ -84,10 +92,10 @@ def print_pipeline_metrics(weather_result, water_result, cmb_result, fuel_result
 
 def print_agent_decision(decision) -> None:
     print(f"region: {decision.region}")
-    print(f"regional_budget: {decision.regional_budget:.2f}")
+    print(f"regional_budget: {format_usd(decision.regional_budget)}")
     print("budget_allocation:")
     for cargo_type, amount in decision.budget_allocation.items():
-        print(f"  {cargo_type}: {amount:.2f}")
+        print(f"  {cargo_type}: {format_usd(amount)}")
     print("scores:")
     for cargo_type, score in decision.scores.items():
         print(f"  {cargo_type}: {score:.4f}")
@@ -96,7 +104,7 @@ def print_agent_decision(decision) -> None:
 def print_agent_decisions(decisions: dict[str, object]) -> None:
     print("\n=== Agent Decisions ===")
     total_budget = sum(decision.regional_budget for decision in decisions.values())
-    print(f"total_budget: {total_budget:.2f}")
+    print(f"total_budget: {format_usd(total_budget)}")
     for decision in decisions.values():
         print("")
         print_agent_decision(decision)
@@ -112,7 +120,7 @@ def parse_args() -> argparse.Namespace:
             "Run Somalia forecasts for weather, water prices, and food/CMB prices. "
             "--mode cache uses existing data and cached Sybilion forecasts; "
             "--mode refresh fetches Copernicus weather and submits live Sybilion jobs. "
-            "Use config-show to print constants or config-set <key> <value> to update one."
+            "Use config-show to print agent constants or config-set <key> <value> to update one."
         )
     )
     parser.add_argument(
@@ -125,7 +133,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "config_key",
         nargs="?",
-        help="Dotted config key for config-set, e.g. agent.total_budget.",
+        help="Dotted config key, e.g. agent.total_budget.",
     )
     parser.add_argument(
         "config_value",
@@ -179,14 +187,24 @@ def parse_args() -> argparse.Namespace:
 
 
 def show_config(args: argparse.Namespace) -> None:
+    config = load_config()
     if args.config_key:
         try:
-            value = get_config_value(load_config(), args.config_key)
+            value = get_config_value(config, args.config_key)
         except KeyError as exc:
             raise SystemExit(f"Unknown config key: {exc.args[0]}") from exc
-        print(pretty_config(value) if isinstance(value, (dict, list)) else value)
+        if args.config_key == "agent":
+            print(human_readable_agent_config(config))
+            return
+        if isinstance(value, dict):
+            rows = flatten_config_values(value, args.config_key)
+            key_width = max(len(key) for key, _ in rows)
+            for key, row_value in rows:
+                print(f"{key:<{key_width}}  {format_config_value(row_value)}")
+            return
+        print(f"{args.config_key}  {format_config_value(value)}")
         return
-    print(pretty_config())
+    print(human_readable_agent_config(config))
 
 
 def set_config(args: argparse.Namespace) -> None:
@@ -198,6 +216,8 @@ def set_config(args: argparse.Namespace) -> None:
         old_value, new_value = set_config_value(args.config_key, value)
     except KeyError as exc:
         raise SystemExit(f"Unknown config key: {exc.args[0]}") from exc
+    except PermissionError as exc:
+        raise SystemExit(str(exc)) from exc
     except TypeError as exc:
         raise SystemExit(str(exc)) from exc
 

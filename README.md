@@ -37,14 +37,78 @@ Weather data comes from the Copernicus Climate Data Store, using ERA5-Land month
 - relative humidity
 - average temperature
 
-![Gedo weather Sybilion forecasts](./img/gedo_weather_sybilion_forecasts.png)
+![Gedo weather Sybilion forecasts](README/img/gedo_weather_sybilion_forecasts.png)
+
+## Usage
+
+Run commands from the repository root. In GitHub / Codespaces this working directory is expected to be `/projects`.
+
+Install dependencies:
+
+```bash
+python -m pip install -r project/requirements.txt
+```
+
+Run the full cached pipeline, including forecasts and agent allocation:
+
+```bash
+python project/app.py
+python project/app.py run --mode cache
+```
+
+Refresh weather from Copernicus and submit live Sybilion forecast jobs:
+
+```bash
+python project/app.py run --mode refresh
+```
+
+Run the pipeline without the agent layer:
+
+```bash
+python project/app.py run --skip-agent
+```
+
+Run the agent for selected regions or a custom budget:
+
+```bash
+python project/app.py run --agent-region Gedo
+python project/app.py run --agent-regions Bay Bakool Gedo --agent-budget 12000000
+```
+
+Use local seasonal baselines for regional agent water/food inputs instead of cached/live Sybilion forecasts:
+
+```bash
+python project/app.py run --agent-forecast-source local
+```
+
+Inspect and update agent configuration:
+
+```bash
+python project/app.py config-show
+python project/app.py config-show agent.total_budget
+python project/app.py config-set agent.total_budget 12000000
+python project/app.py config-set agent.weights.water_supplies 1.35
+```
+
+Legacy one-off Sybilion scripts are still available:
+
+```bash
+python somalia_water_sybilion.py --no-submit
+python somalia_water_sybilion.py --aggregation median --horizon 6
+python somalia_water_sybilion.py --job-id <job-id>
+
+python somalia_cmb_sybilion.py --horizon 6
+python somalia_cmb_sybilion.py --job-id <job-id>
+```
+
+See [USAGE.md](USAGE.md) for the full CLI documentation.
 
 
 ## Agent Layer
 
 Funding is the bottleneck. The agent receives a constant money budget, distributes that budget across regions by population, then distributes each regional budget across aid classes by forecast pressure and delivery cost. The current default total budget is 10,000,000.
 
-All tunable constants live in `project/config.json`. Print the full config with:
+All agent constants live in `project/config.json`. Print the editable agent constants with short descriptions:
 
 ```bash
 python project/app.py config-show
@@ -57,7 +121,7 @@ python project/app.py config-show agent.total_budget
 python project/app.py config-show agent.weights
 ```
 
-Update one constant with `config-set`; values are parsed as JSON, so numbers, booleans, lists, and objects keep their type:
+Update one agent constant with `config-set`; values are parsed as JSON, so numbers, booleans, lists, and objects keep their type. Only `agent.*` keys can be changed from the CLI:
 
 ```bash
 python project/app.py config-set agent.total_budget 12000000
