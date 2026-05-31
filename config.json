@@ -6,11 +6,10 @@
       "food_supplies",
       "fuel"
     ],
-    "drought_weight": 2.0,
-    "drought_temperature_weight": 1.0,
-    "drought_rainfall_weight": 2.5,
     "drought_humidity_weight": 0.8,
-    "missing_weather_drought_score": 0.5,
+    "drought_rainfall_weight": 2.5,
+    "drought_temperature_weight": 1.0,
+    "drought_weight": 2.0,
     "food_drought_weight": 1.2,
     "fuel_cross_sector_weight": 0.9,
     "good_unit_costs": {
@@ -20,6 +19,7 @@
       "water_supplies": 1.0
     },
     "level_weight": 0.8,
+    "missing_weather_drought_score": 0.5,
     "region_accessibility": {
       "Bakool": 1.0,
       "Buur Hakaba": 1.0,
@@ -32,7 +32,7 @@
     },
     "slope_weight": 2.5,
     "softmax_temperature": 1.5,
-    "total_budget": 100.0,
+    "total_budget": 100,
     "uncertainty_weight": 0.3,
     "weights": {
       "food_supplies": 1.15,
@@ -90,9 +90,6 @@
         2.8155222
       ]
     ],
-    "buur_hakaba_districts": [
-      "Buur Hakaba"
-    ],
     "burhakaba_polygon": [
       [
         44.79105,
@@ -114,6 +111,9 @@
         44.7774833,
         3.4252056
       ]
+    ],
+    "buur_hakaba_districts": [
+      "Buur Hakaba"
     ],
     "gedo_districts": [
       "Garbahaarey",

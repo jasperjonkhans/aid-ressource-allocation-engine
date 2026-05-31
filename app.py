@@ -163,29 +163,30 @@ def print_overall_reasoning(decisions: dict[str, object], *, percent_mode: bool)
     top_region = max(decisions.values(), key=lambda decision: decision.regional_budget)
     top_region_cargo = max(top_region.budget_allocation, key=top_region.budget_allocation.get)
 
-    print("\n=== Overall Reasoning ===")
+    print("\n=== Agent Reasoning Summary ===")
     print(
-        "1. Most resources go to "
+        "1. Overall allocation prioritizes "
         f"{top_cargo}: {format_budget_value(cargo_totals[top_cargo], percent_mode=percent_mode)} "
-        "overall."
+        "across all selected regions."
     )
     top_cargo_reason = _top_reason_for(top_cargo_region, top_cargo)
     if top_cargo_reason:
         print(f"   Strongest concrete driver: {top_cargo_region.region}: {top_cargo_reason}")
     print(
-        "2. The largest regional share goes to "
+        "2. The largest regional budget goes to "
         f"{top_region.region}: {format_budget_value(top_region.regional_budget, percent_mode=percent_mode)}."
-    )
-    if top_region.population is not None:
-        print(f"   This is driven by the population-weighted regional split: population={top_region.population}.")
-    print(
-        "3. Inside that region, the largest goods allocation is "
-        f"{top_region_cargo}: "
-        f"{format_budget_value(top_region.budget_allocation[top_region_cargo], percent_mode=percent_mode)}."
     )
     top_region_reason = _top_reason_for(top_region, top_region_cargo)
     if top_region_reason:
-        print(f"   Strongest concrete driver: {top_region_reason}")
+        print(
+            f"   Forecasts in that region put the strongest pressure on "
+            f"{top_region_cargo}: {top_region_reason}"
+        )
+    print(
+        "3. Within that region, the largest predicted need is "
+        f"{top_region_cargo}: "
+        f"{format_budget_value(top_region.budget_allocation[top_region_cargo], percent_mode=percent_mode)}."
+    )
 
 
 def print_formulas_once(decisions: dict[str, object]) -> None:

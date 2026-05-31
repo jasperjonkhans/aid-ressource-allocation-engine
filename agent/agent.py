@@ -181,6 +181,10 @@ def compute_features(predictions: AgentPredictionBundle) -> dict[str, float]:
     fuel_forecast = _forecast_frame(predictions.fuel)
     fuel_history = _history_frame(predictions.fuel)
 
+    temperature_slope = _weather_slope(predictions.weather, "temperature_avg_c")
+    rainfall_slope = _weather_slope(predictions.weather, "rainfall_mm_per_day")
+    humidity_slope = _weather_slope(predictions.weather, "relative_humidity_pct")
+
     return {
         "water_slope": _forecast_slope(water_forecast),
         "water_level": _history_level(water_history, water_forecast),
@@ -192,6 +196,9 @@ def compute_features(predictions: AgentPredictionBundle) -> dict[str, float]:
         "fuel_level": _history_level(fuel_history, fuel_forecast),
         "fuel_uncertainty": _forecast_uncertainty(fuel_forecast),
         "drought_score": _drought_score(predictions.weather),
+        "temperature_slope": temperature_slope,
+        "rainfall_slope": rainfall_slope,
+        "humidity_slope": humidity_slope,
     }
 
 
@@ -476,10 +483,7 @@ def allocate_budget(
     accessibility: float = 1.0,
 ) -> tuple[dict[str, float], dict[str, float], dict[str, float]]:
     costs = effective_unit_costs(accessibility=accessibility, unit_costs=unit_costs)
-    budget_pressure = {
-        cargo_type: scores[cargo_type] * costs[cargo_type]
-        for cargo_type in CARGO_TYPES
-    }
+    budget_pressure = {cargo_type: scores[cargo_type] for cargo_type in CARGO_TYPES}
     shares = softmax(budget_pressure)
     budget_allocation = {
         cargo_type: round(shares.get(cargo_type, 0.0) * budget, 2)
@@ -540,15 +544,15 @@ def reasoning_formulas() -> dict[str, str]:
             "+ UNCERTAINTY_WEIGHT * fuel_uncertainty)"
         ),
         "budget_allocation": (
-            "softmax(cargo_score * effective_unit_cost / SOFTMAX_TEMPERATURE) "
-            "* regional_budget"
+            "softmax(cargo_score / SOFTMAX_TEMPERATURE) * regional_budget; "
+            "effective_unit_cost is used after budget allocation to estimate units"
         ),
         "effective_unit_cost": "base_unit_cost / accessibility",
     }
 
 
-def _reason_direction(value: float) -> str:
-    return "supports" if value >= 0 else "weakens"
+def _pct(value: float) -> str:
+    return f"{value * 100:+.1f}%"
 
 
 def _feature_reason_text(
@@ -557,13 +561,58 @@ def _feature_reason_text(
     label: str,
     value: float,
     contribution: float,
+    features: dict[str, float],
 ) -> str:
     cargo_label = cargo_type.replace("_", " ")
-    direction = _reason_direction(contribution)
-    return (
-        f"{label} {direction} {cargo_label} for these forecasts "
-        f"(value={value:.4f}, contribution={contribution:+.4f})."
-    )
+    supports = contribution >= 0
+    effect = "raises" if supports else "reduces"
+    trend = "rises" if value >= 0 else "falls"
+
+    if label.endswith("price trend"):
+        subject = label.removesuffix(" trend")
+        return (
+            f"The forecasted {subject} {trend} over the horizon "
+            f"({_pct(value)} from first to last forecast month), which {effect} "
+            f"the allocation to {cargo_label}."
+        )
+
+    if label.endswith("price level"):
+        subject = label.removesuffix(" level")
+        relative = "above" if value >= 0 else "below"
+        return (
+            f"The forecasted {subject} is {relative} its historical median "
+            f"(level signal {value:+.2f}), which {effect} the allocation to {cargo_label}."
+        )
+
+    if label == "drought pressure":
+        rainfall = features.get("rainfall_slope", 0.0)
+        temperature = features.get("temperature_slope", 0.0)
+        humidity = features.get("humidity_slope", 0.0)
+        drought_signal = value - 0.5
+        weather_effect = "adds" if drought_signal >= 0 else "eases"
+        return (
+            "The weather forecast points to "
+            f"rainfall {_pct(rainfall)}, temperature {_pct(temperature)}, "
+            f"and humidity {_pct(humidity)} across the horizon; the combined "
+            f"weather signal {weather_effect} drought pressure "
+            f"({drought_signal:+.2f} vs neutral), shaping the allocation to {cargo_label}."
+        )
+
+    if label.endswith("forecast uncertainty"):
+        subject = label.removesuffix(" forecast uncertainty")
+        return (
+            f"The {subject} forecast band is {'wide' if value > 0 else 'narrow'} "
+            f"(relative width {value:.2f}), so uncertainty {effect} the allocation "
+            f"to {cargo_label}."
+        )
+
+    if label == "water and food pressure spillover":
+        return (
+            f"Water and food forecasts create combined logistics pressure "
+            f"(signal {value:.2f}), which {effect} the fuel allocation."
+        )
+
+    return f"{label} {effect} the allocation to {cargo_label}."
 
 
 def _component_reason(
@@ -571,6 +620,7 @@ def _component_reason(
     cargo_type: str,
     component: dict[str, float | str],
     rank_basis: float,
+    features: dict[str, float],
 ) -> dict[str, Any]:
     contribution = float(component["contribution"])
     feature = str(component["feature"])
@@ -589,6 +639,7 @@ def _component_reason(
             label=label,
             value=value,
             contribution=contribution,
+            features=features,
         ),
     }
 
@@ -611,7 +662,12 @@ def explain_allocations(
             _component_reason(
                 cargo_type=cargo_type,
                 component=component,
-                rank_basis=abs(float(component["contribution"])),
+                rank_basis=(
+                    max(float(component["value"]) - 0.5, 0.0)
+                    if component["feature"] == "drought_score"
+                    else max(float(component["contribution"]), 0.0)
+                ),
+                features=features,
             )
             for component in cargo_components
         ]
