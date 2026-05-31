@@ -144,6 +144,126 @@ def forecast_to_frame(forecast: dict) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
 
 
+def _overall_metric(entry: dict, group: str, metric: str = "mean") -> float | None:
+    value = entry.get(group, {}).get("overall", {}).get(metric)
+    if value is None:
+        return None
+    return float(value)
+
+
+def external_signals_to_frame(external_signals: dict) -> pd.DataFrame:
+    signals = external_signals.get("data", {})
+    rows = []
+
+    for driver_id, entry in signals.items():
+        rows.append(
+            {
+                "driver_id": driver_id,
+                "driver_name": entry.get("driver_name", driver_id),
+                "importance_mean": _overall_metric(entry, "importance"),
+                "importance_max": _overall_metric(entry, "importance", "max"),
+                "correlation_mean": _overall_metric(entry, "pearson_correlation"),
+                "correlation_max": _overall_metric(entry, "pearson_correlation", "max"),
+                "correlation_min": _overall_metric(entry, "pearson_correlation", "min"),
+                "direction_mean": _overall_metric(entry, "direction"),
+            }
+        )
+
+    if not rows:
+        raise RuntimeError("External signals payload did not contain data.")
+
+    df = pd.DataFrame(rows)
+    df["importance_mean"] = df["importance_mean"].fillna(0.0)
+    df["abs_correlation_mean"] = df["correlation_mean"].abs()
+    return df.sort_values(
+        ["importance_mean", "abs_correlation_mean"],
+        ascending=[False, False],
+    ).reset_index(drop=True)
+
+
+def print_top_drivers(drivers: pd.DataFrame, *, top_n: int = 8) -> None:
+    columns = [
+        "driver_name",
+        "importance_mean",
+        "correlation_mean",
+        "direction_mean",
+    ]
+    printable = drivers.head(top_n).loc[:, columns].copy()
+    print("\nTop Sybilion drivers")
+    print(printable.to_string(index=False, float_format=lambda value: f"{value:.4f}"))
+
+
+def save_driver_plot(
+    drivers: pd.DataFrame,
+    out_path: Path,
+    *,
+    title: str = "Sybilion forecast drivers",
+    top_n: int = 8,
+) -> None:
+    os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+    import matplotlib.pyplot as plt
+
+    top = drivers.head(top_n).copy()
+    top["label"] = (
+        top["driver_name"].str.slice(0, 54)
+        + " ["
+        + top["driver_id"].str.slice(0, 8)
+        + "]"
+    )
+    top = top.iloc[::-1]
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, max(5, top_n * 0.55)))
+    axes[0].barh(top["label"], top["importance_mean"], color="#2a9d8f")
+    axes[0].set_title("Driver importance")
+    axes[0].set_xlabel("Mean importance")
+    axes[0].grid(axis="x", alpha=0.25)
+
+    colors = ["#2a9d8f" if value >= 0 else "#e76f51" for value in top["correlation_mean"]]
+    axes[1].barh(top["label"], top["correlation_mean"], color=colors)
+    axes[1].axvline(0, color="#333333", linewidth=0.8)
+    axes[1].set_title("Pearson correlation")
+    axes[1].set_xlabel("Mean correlation")
+    axes[1].grid(axis="x", alpha=0.25)
+
+    fig.suptitle(title, y=1.02)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=160, bbox_inches="tight")
+    plt.close(fig)
+
+
+def save_driver_outputs(
+    external_signals: dict,
+    out_dir: Path,
+    *,
+    prefix: str = "sybilion",
+    top_n: int = 8,
+    print_drivers: bool = True,
+    plot_drivers: bool = True,
+) -> pd.DataFrame:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / f"{prefix}_external_signals.json").write_text(
+        json.dumps(external_signals, indent=2),
+        encoding="utf-8",
+    )
+    drivers = external_signals_to_frame(external_signals)
+
+    drivers.to_csv(out_dir / f"{prefix}_drivers.csv", index=False)
+
+    if print_drivers:
+        print_top_drivers(drivers, top_n=top_n)
+
+    if plot_drivers:
+        save_driver_plot(
+            drivers,
+            out_dir / f"{prefix}_drivers.png",
+            title=f"Sybilion drivers - {prefix}",
+            top_n=top_n,
+        )
+
+    return drivers
+
+
 class SybilionClient:
     def __init__(self, token: str | None = None, api_base: str = API_BASE):
         self.token = token or load_token()
@@ -233,6 +353,11 @@ class SybilionClient:
         poll_s: float = 5.0,
         timeout_s: float = 900.0,
         verbose: bool = True,
+        driver_out_dir: str | Path | None = None,
+        driver_prefix: str = "sybilion",
+        top_drivers: int = 8,
+        print_drivers: bool = True,
+        plot_drivers: bool = True,
     ) -> tuple[ForecastJob, dict]:
         submitted = self.submit_forecast(body)
         if verbose:
@@ -248,4 +373,38 @@ class SybilionClient:
             raise RuntimeError(f"Sybilion job ended with status={job.status}.")
 
         forecast = self.download_json_artifact(submitted.job_id, "forecast.json")
+        try:
+            external_signals = self.download_json_artifact(
+                submitted.job_id,
+                "external_signals.json",
+            )
+        except RuntimeError as exc:
+            if verbose:
+                print(f"Could not download Sybilion drivers: {exc}")
+        else:
+            if driver_out_dir is not None:
+                out_dir = Path(driver_out_dir)
+                out_dir.mkdir(parents=True, exist_ok=True)
+                (out_dir / f"{driver_prefix}_external_signals.json").write_text(
+                    json.dumps(external_signals, indent=2),
+                    encoding="utf-8",
+                )
+            try:
+                drivers = external_signals_to_frame(external_signals)
+            except RuntimeError as exc:
+                if verbose:
+                    print(f"Could not parse Sybilion drivers: {exc}")
+            else:
+                if print_drivers:
+                    print_top_drivers(drivers, top_n=top_drivers)
+                if driver_out_dir is not None:
+                    save_driver_outputs(
+                        external_signals,
+                        Path(driver_out_dir),
+                        prefix=driver_prefix,
+                        top_n=top_drivers,
+                        print_drivers=False,
+                        plot_drivers=plot_drivers,
+                    )
+
         return job, forecast

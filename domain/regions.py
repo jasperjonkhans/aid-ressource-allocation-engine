@@ -24,3 +24,33 @@ BAKOOL_POLYGON = [
     (44.0702306, 2.6722278),
     (43.9708306, 2.8155222),
 ]
+
+bay_districts = [
+    "Baydhaba",
+    "Buur Hakaba",
+    "Diinsoor",
+    "Qansax Dheere"
+]
+
+bakool_districts = [
+    "Xudur",
+    "Ceel Barde",
+    "Tayeeglow",
+    "Waajid",
+    "Rab Dhuure"
+]
+
+gedo_districts = [
+    "Garbahaarey",
+    "Baardheere",
+    "Belet Xaawo",
+    "Ceel Waaq",
+    "Doolow",
+    "Luuq"
+]
+
+water_region_districts = {
+    "bay": bay_districts,
+    "bakool": bakool_districts,
+    "gedo": gedo_districts,
+}

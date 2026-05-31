@@ -3,6 +3,7 @@ h5netcdf
 h5py
 matplotlib
 numpy
+openeo
 pandas
 requests
 xarray
