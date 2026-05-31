@@ -99,6 +99,16 @@ def print_agent_decision(decision) -> None:
     print("scores:")
     for cargo_type, score in decision.scores.items():
         print(f"  {cargo_type}: {score:.4f}")
+    if decision.reasoning:
+        print("reasoning:")
+        for cargo_type, reasons in decision.reasoning.items():
+            print(f"  {cargo_type}:")
+            for index, reason in enumerate(reasons, start=1):
+                print(f"    {index}. {reason['text']}")
+    if decision.formulas:
+        print("formulas:")
+        for name, formula in decision.formulas.items():
+            print(f"  {name}: {formula}")
 
 
 def print_agent_decisions(decisions: dict[str, object]) -> None:
@@ -118,8 +128,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run Somalia forecasts for weather, water prices, and food/CMB prices. "
-            "--mode cache uses existing data and cached Sybilion forecasts; "
-            "--mode refresh fetches Copernicus weather and submits live Sybilion jobs. "
+            "By default, the run command fetches fresh weather data and submits live Sybilion forecasts. "
             "Use config-show to print agent constants or config-set <key> <value> to update one."
         )
     )
@@ -140,10 +149,12 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         help='New JSON value for config-set, e.g. 12000000 or "[\\"Gedo\\", \\"Bay\\"]".',
     )
-    parser.add_argument("--mode", choices=["cache", "refresh"], default="cache")
-    parser.add_argument("--data-source", choices=["cache", "live"], help="Override weather data source.")
-    parser.add_argument("--forecast-source", choices=["cache", "live"], help="Override Sybilion forecast source.")
-    parser.add_argument("--overwrite-weather", action="store_true", help="Redownload Copernicus NetCDF even if cached.")
+    parser.add_argument(
+        "--mode",
+        choices=["live", "cached"],
+        default="live",
+        help="Run live by default, or use cached data and cached/local forecasts.",
+    )
     parser.add_argument("--weather-horizon", type=int, default=DEFAULT_WEATHER_HORIZON)
     parser.add_argument("--price-horizon", type=int, default=DEFAULT_PRICE_HORIZON)
     parser.add_argument("--poll-s", type=float, default=5.0)
@@ -172,15 +183,21 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--agent-forecast-source",
-        choices=["cache", "live", "local"],
-        help="Override forecast source for regional agent water/food inputs.",
+        choices=["live", "cache", "local"],
+        default="live",
+        help="Forecast source for regional agent water/food inputs.",
     )
-    parser.add_argument("--skip-agent", action="store_true")
     parser.add_argument(
         "--fuel-forecast-source",
-        choices=["cache", "live", "local"],
-        default="local",
-        help="Fuel forecast source. Defaults to a local seasonal baseline until a Sybilion fuel cache exists.",
+        choices=["live", "cache", "local"],
+        default="live",
+        help="Fuel forecast source.",
+    )
+    parser.add_argument(
+        "--reasoning",
+        choices=["reasons", "formula", "off"],
+        default="reasons",
+        help="Print deterministic allocation reasons, formulas, or no reasoning.",
     )
     parser.add_argument("--top-drivers", type=int, default=8)
     return parser.parse_args()
@@ -227,17 +244,18 @@ def set_config(args: argparse.Namespace) -> None:
 
 
 def run_pipeline(args: argparse.Namespace):
-    data_source = args.data_source or ("live" if args.mode == "refresh" else "cache")
-    forecast_source = args.forecast_source or ("live" if args.mode == "refresh" else "cache")
-    agent_forecast_source = args.agent_forecast_source or "local"
+    live_mode = args.mode == "live"
+    data_source = "live" if live_mode else "cache"
+    forecast_source = "live" if live_mode else "cache"
+    agent_forecast_source = args.agent_forecast_source
+    if not live_mode and agent_forecast_source == "live":
+        agent_forecast_source = "local"
+    fuel_forecast_source = args.fuel_forecast_source
+    if not live_mode and fuel_forecast_source == "live":
+        fuel_forecast_source = "local"
     agent_budget = args.agent_budget if args.agent_budget is not None else args.agent_units
     status(f"mode={args.mode}, data_source={data_source}, forecast_source={forecast_source}")
-
-    needs_live_client = "live" in {
-        forecast_source,
-        args.fuel_forecast_source,
-        agent_forecast_source,
-    }
+    needs_live_client = "live" in {forecast_source, agent_forecast_source, fuel_forecast_source}
     client = SybilionClient() if needs_live_client else None
 
     weather_result = predict_gedo_weather(
@@ -247,7 +265,7 @@ def run_pipeline(args: argparse.Namespace):
         horizon=args.weather_horizon,
         poll_s=args.poll_s,
         timeout_s=args.timeout_s,
-        overwrite_weather=args.overwrite_weather,
+        overwrite_weather=live_mode,
     )
     status(
         "Weather loaded: "
@@ -276,8 +294,8 @@ def run_pipeline(args: argparse.Namespace):
     )
 
     fuel_result = predict_global_fuel_price(
-        source=args.fuel_forecast_source,
-        client=client if args.fuel_forecast_source == "live" else None,
+        source=fuel_forecast_source,
+        client=client if fuel_forecast_source == "live" else None,
         horizon=args.price_horizon,
         poll_s=args.poll_s,
         timeout_s=args.timeout_s,
@@ -288,42 +306,42 @@ def run_pipeline(args: argparse.Namespace):
     print_pipeline_metrics(weather_result, water_result, cmb_result, fuel_result)
 
     agent_decisions = {}
-    if not args.skip_agent:
-        agent_regions = normalize_agent_regions(args)
-        status(
-            "Building agent decision from regional predictions: "
-            f"regions={', '.join(agent_regions)}, source={agent_forecast_source}"
+    agent_regions = normalize_agent_regions(args)
+    status(
+        "Building agent decision from regional predictions: "
+        f"regions={', '.join(agent_regions)}, source={agent_forecast_source}"
+    )
+    region_budgets = population_weighted_budget(agent_regions, total_budget=agent_budget)
+    for agent_region in agent_regions:
+        regional_water_result = predict_regional_water_price(
+            agent_region,
+            source=agent_forecast_source,
+            client=client if agent_forecast_source == "live" else None,
+            horizon=args.price_horizon,
+            poll_s=args.poll_s,
+            timeout_s=args.timeout_s,
+            top_drivers=args.top_drivers,
         )
-        region_budgets = population_weighted_budget(agent_regions, total_budget=agent_budget)
-        for agent_region in agent_regions:
-            regional_water_result = predict_regional_water_price(
-                agent_region,
-                source=agent_forecast_source,
-                client=client if agent_forecast_source == "live" else None,
-                horizon=args.price_horizon,
-                poll_s=args.poll_s,
-                timeout_s=args.timeout_s,
-                top_drivers=args.top_drivers,
-            )
-            regional_food_result = predict_regional_food_price(
-                agent_region,
-                source=agent_forecast_source,
-                client=client if agent_forecast_source == "live" else None,
-                horizon=args.price_horizon,
-                poll_s=args.poll_s,
-                timeout_s=args.timeout_s,
-                top_drivers=args.top_drivers,
-            )
-            agent_decisions[agent_region] = make_aid_decision(
-                region=agent_region,
-                water_prediction=regional_water_result,
-                food_prediction=regional_food_result,
-                fuel_prediction=fuel_result,
-                weather_prediction=weather_for_agent_region(agent_region, weather_result),
-                budget=region_budgets[agent_region],
-                population=REGION_POPULATIONS[agent_region],
-            )
-        print_agent_decisions(agent_decisions)
+        regional_food_result = predict_regional_food_price(
+            agent_region,
+            source=agent_forecast_source,
+            client=client if agent_forecast_source == "live" else None,
+            horizon=args.price_horizon,
+            poll_s=args.poll_s,
+            timeout_s=args.timeout_s,
+            top_drivers=args.top_drivers,
+        )
+        agent_decisions[agent_region] = make_aid_decision(
+            region=agent_region,
+            water_prediction=regional_water_result,
+            food_prediction=regional_food_result,
+            fuel_prediction=fuel_result,
+            weather_prediction=weather_for_agent_region(agent_region, weather_result),
+            budget=region_budgets[agent_region],
+            population=REGION_POPULATIONS[agent_region],
+            reasoning=args.reasoning,
+        )
+    print_agent_decisions(agent_decisions)
 
     status("Pipeline finished.")
     return weather_result, water_result, cmb_result, fuel_result, agent_decisions

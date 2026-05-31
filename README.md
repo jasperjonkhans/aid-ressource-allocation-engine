@@ -2,7 +2,7 @@
 
 ## Somalia
 
-Somalia has suffered from prolonged conflict, weak infrastructure, recurrent droughts, and heat waves. These conditions create recurring food and water shortages and make humanitarian aid planning especially difficult.
+Somalia has suffered from prolonged conflict, resulting in weak infrastructure on top of that recurrent droughts, and heat waves plaege the region. As a result wate
 
 Humanitarian organisations often struggle to detect regional crises early enough, which can lead to poor timing, inefficient resource allocation, and avoidable pressure on already limited aid budgets.
 
@@ -49,23 +49,18 @@ Install dependencies:
 python -m pip install -r requirements.txt
 ```
 
-Run the full cached pipeline, including forecasts and agent allocation. The national weather/water/CMB forecasts are loaded from cache; regional agent water/food inputs use local seasonal baselines by default so the cached run only needs a small set of tracked data files.
+Run the full live pipeline, including fresh weather data, new Sybilion forecasts, and agent allocation. This fetches Gedo weather data from Copernicus and submits new Sybilion jobs for weather, water, CMB, fuel, regional water, and regional food forecasts.
 
 ```bash
 python app.py
-python app.py run --mode cache
+python app.py run
 ```
 
-Refresh weather from Copernicus and submit live Sybilion forecast jobs:
+Run from cached data and cached/local forecasts:
 
 ```bash
-python app.py run --mode refresh
-```
-
-Run the pipeline without the agent layer:
-
-```bash
-python app.py run --skip-agent
+python app.py --mode cached
+python app.py run --mode cached
 ```
 
 Run the agent for selected regions or a custom budget:
@@ -75,7 +70,7 @@ python app.py run --agent-region Gedo
 python app.py run --agent-regions Bay Bakool Gedo --agent-budget 12000000
 ```
 
-Use local seasonal baselines for regional agent water/food inputs instead of cached/live Sybilion forecasts:
+Use local seasonal baselines for regional agent water/food inputs instead of live Sybilion forecasts:
 
 ```bash
 python app.py run --agent-forecast-source local
@@ -133,7 +128,7 @@ It returns a deterministic allocation decision across the aid classes humanitari
 - food supplies
 - fuel supplies
 
-Reason text is intentionally disabled for now; the current return object keeps `reasoning=None` so explanations can be added later without changing the interface. The CLI defaults to all three configured agent regions; use `--agent-regions Bay Bakool Gedo` for an explicit run or `--agent-region Gedo` for a one-region run. The `--agent-budget` value is distributed across regions by population before each region's cargo allocation is computed. `--agent-units` still works as a deprecated alias.
+Reasoning is deterministic and uses the same score components as the allocation logic. Each cargo class returns the top five ranked reasons by default. Use `--reasoning formula` to print the formulas or `--reasoning off` to suppress reasoning output. The CLI defaults to all three configured agent regions; use `--agent-regions Bay Bakool Gedo` for an explicit run or `--agent-region Gedo` for a one-region run. The `--agent-budget` value is distributed across regions by population before each region's cargo allocation is computed. `--agent-units` still works as a deprecated alias.
 
 Current population weights:
 
@@ -255,7 +250,7 @@ These files are available for deeper CMB analysis, even though the current forec
 | national | food basket cost | `data/somalia/sybilion_cmb/somalia_cmb_sybilion_forecast.csv` | Sybilion forecast for national CMB in USD, including point forecasts and quantiles. |
 | national | food basket cost, archived Sybilion series | `data/somalia/sybilion_cmb/somalia_cmb_0e8c76cc-c47f-4758-b86e-a86d16466796_forecast_series.csv` | Archived forecast-series export from an earlier Sybilion CMB job. Kept for comparison/debugging against the normalized current forecast CSV. |
 | national | food basket forecast drivers | `data/somalia/sybilion_cmb/somalia_cmb_sybilion_drivers.csv` | Sybilion driver ranking for the CMB forecast, useful for explaining which external signals influenced the forecast. |
-| national | fuel cost proxy | `data/somalia/sybilion_fuel/global_fuel_sybilion_forecast.csv` | Forecast for the aggregated fuel-price proxy. Defaults to a local seasonal baseline unless live Sybilion fuel forecasts are requested. |
+| national | fuel cost proxy | `data/somalia/sybilion_fuel/global_fuel_sybilion_forecast.csv` | Sybilion forecast for the aggregated fuel-price proxy, including point forecasts and quantiles. |
 | regional, Bay | food-price proxy | `data/somalia/sybilion_regional_food/bay/bay_food_sybilion_forecast.csv` | Forecast for the Bay regional WFP food-price proxy, including point forecasts and quantiles. |
 | regional, Bakool | food-price proxy | `data/somalia/sybilion_regional_food/bakool/bakool_food_sybilion_forecast.csv` | Forecast for the Bakool regional WFP food-price proxy, including point forecasts and quantiles. |
 | regional, Gedo | food-price proxy | `data/somalia/sybilion_regional_food/gedo/gedo_food_sybilion_forecast.csv` | Forecast for the Gedo regional WFP food-price proxy, including point forecasts and quantiles. |

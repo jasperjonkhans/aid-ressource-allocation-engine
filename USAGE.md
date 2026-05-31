@@ -12,44 +12,42 @@ python -m pip install -r requirements.txt
 
 Live Sybilion runs require a token in `SYBILION_API_TOKEN`, `API_KEY.txt`, or `aid-ressource-allocation-engine/API_KEY.txt`.
 
-Live Copernicus weather refreshes require CDS credentials via `CDSAPI_KEY` / `CDSAPI_URL` or a `.cdsapirc` file.
+Fresh Copernicus weather fetches require CDS credentials via `CDSAPI_KEY` / `CDSAPI_URL` or a `.cdsapirc` file.
 
 ## Main Pipeline
 
-Default cached run:
+Default live run:
 
 ```bash
 python app.py
-python app.py run --mode cache
+python app.py run
 ```
 
-This loads cached weather, water, and CMB forecasts, builds local seasonal baselines for fuel and regional agent inputs by default, and prints agent allocation decisions.
+This fetches fresh Gedo weather data from Copernicus, submits new Sybilion forecasts for all pipeline signals, and prints agent allocation decisions.
 
-Refresh data and submit live forecasts:
+Cached run:
 
 ```bash
-python app.py run --mode refresh
+python app.py --mode cached
+python app.py run --mode cached
 ```
+
+This uses cached weather and cached national forecasts. Regional agent inputs and fuel fall back to local seasonal baselines unless a source is set explicitly.
 
 Useful overrides:
 
 ```bash
-python app.py run --data-source cache --forecast-source live
-python app.py run --overwrite-weather
+python app.py run --mode cached
 python app.py run --weather-horizon 12 --price-horizon 6
 python app.py run --poll-s 5 --timeout-s 900
 python app.py run --water-aggregation median --fuel-aggregation median
 python app.py run --fuel-forecast-source local
+python app.py run --reasoning formula
+python app.py run --reasoning off
 python app.py run --top-drivers 8
 ```
 
 ## Agent Runs
-
-Run the full pipeline but skip the agent layer:
-
-```bash
-python app.py run --skip-agent
-```
 
 Run one region:
 
@@ -75,11 +73,10 @@ Use regional local seasonal baselines for water/food forecasts:
 python app.py run --agent-forecast-source local
 ```
 
-Use cached or live regional forecasts:
+Use cached regional forecasts:
 
 ```bash
 python app.py run --agent-forecast-source cache
-python app.py run --agent-forecast-source live
 ```
 
 `--agent-units` is kept as a deprecated alias for `--agent-budget`.
