@@ -58,72 +58,41 @@ It returns a deterministic allocation decision across the aid classes humanitari
 
 Reason text is intentionally disabled for now; the current return object keeps `reasoning=None` so explanations can be added later without changing the interface.
 
-drought_index =
-sigmoid(
-    + w_1 * temp_slope
+```text
+drought_index = sigmoid(
+    + w_1 * temperature_slope
     - w_2 * rainfall_slope
-    - w_3 *humidity_slope
+    - w_3 * humidity_slope
 )
 
-water_supplies_score =
-WEIGHT_WATER_SUPPLIES *
-sigmoid(
-    water_price_slope +
-    water_price_level +
-    drought_index
+water_supplies_score = WEIGHT_WATER_SUPPLIES * sigmoid(
+    water_price_slope + water_price_level + drought_index
 )
 
-water_infrastructure_score =
-WEIGHT_WATER_INFRA *
-sigmoid(
-    water_price_level +
-    drought_index -
-    water_price_slope
+water_infrastructure_score = WEIGHT_WATER_INFRA * sigmoid(
+    water_price_level + drought_index - water_price_slope
 )
 
-food_supplies_score =
-WEIGHT_FOOD_SUPPLIES *
-sigmoid(
-    food_price_slope +
-    food_price_level +
-    drought_index
+food_supplies_score = WEIGHT_FOOD_SUPPLIES * sigmoid(
+    food_price_slope + food_price_level + drought_index
 )
 
-fuel_score =
-WEIGHT_FUEL *
-sigmoid(
-    global_fuel_price_slope +
-    global_fuel_price_level +
-    average(water_supplies_score, water_infrastructure_score, food_supplies_score)
+fuel_score = WEIGHT_FUEL * sigmoid(
+    global_fuel_price_slope
+    + global_fuel_price_level
+    + average(water_supplies_score, water_infrastructure_score, food_supplies_score)
 )
 
-allocation =
-softmax(all region × good scores)
+allocation = softmax(cargo_scores)
+```
 
-steep water/food increase → emergency supplies
-high but stable water stress → water infrastructure
-fuel pressure or multi-sector stress → fuel
-drought index → regional urgency multiplier
-
-we try to foresee regional crises and build a transparent agentic reasoning layer ontop of that - use sybilion to forecast unexpected water and food demand by analysing regional water and fuel prices
-
-an agent takes regional problems into account, redistributing ressources where they are needed most 
+Steep water or food increases push emergency supplies up. High but stable water stress pushes infrastructure. Fuel pressure is treated as a cross-sector multiplier because it affects transport, pumping, and distribution.
 
 ## technicalities
 
-we extract food prices of different local markets made available by humanitian and regional organisations. calculate regional and national water demand.
+Food and fuel prices come from local market data published by humanitarian and regional organisations. Water demand is represented through water-price proxies, both nationally and for selected regions.
 
-use copernicus satelite data weather data to foresee incoming droughts by forecasting humidity, rainfall and average temperature seperately. temperature is taken into account for immideate water supply. rainfall, humidity and temperature to gain insight about future potential yields
-
-fuel prices typically are very similar across regions, which is why it is computed globally. if fuelprices increase, especially if prices structurally increase when theres no acute drought that can be attributes to fuel as energy prices spread across sectors.
-
-
-the agent weights global features, compa
-
-
-
-
-water supplies, food supplies, fuel, equipment for water infrastructure
+Copernicus satellite weather data is used to anticipate drought pressure by forecasting humidity, rainfall, and average temperature separately. Fuel is modelled globally because fuel price pressure tends to propagate across regions through transport and energy costs.
 
 ## data
 
