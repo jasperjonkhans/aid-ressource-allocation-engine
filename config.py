@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = Path(__file__).with_name("config.json")
 
 EDITABLE_CONFIG_PREFIX = "agent."

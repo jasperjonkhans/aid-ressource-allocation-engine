@@ -38,7 +38,7 @@
   "clients": {
     "copernicus": {
       "cds_url": "https://cds.climate.copernicus.eu/api",
-      "default_data_dir": "project/data/copernicus",
+      "default_data_dir": "data/copernicus",
       "era5_land_monthly_dataset": "reanalysis-era5-land-monthly-means",
       "monthly_variables": [
         "2m_dewpoint_temperature",
@@ -50,7 +50,7 @@
       "api_base": "https://api.sybilion.dev/api/v1",
       "default_token_paths": [
         "API_KEY.txt",
-        "project/API_KEY.txt"
+        "aid-ressource-allocation-engine/API_KEY.txt"
       ]
     }
   },
@@ -166,8 +166,8 @@
       "Somalia port import volumes",
       "Somalia humanitarian food assistance"
     ],
-    "cmb_out_dir": "somalia/data/sybilion_cmb",
-    "cmb_raw_path": "somalia/data/fsnau_cmb_total_basket_cmb_sorghum.csv",
+    "cmb_out_dir": "data/somalia/sybilion_cmb",
+    "cmb_raw_path": "data/somalia/fsnau_cmb_total_basket_cmb_sorghum.csv",
     "default_price_horizon": 6,
     "default_weather_horizon": 12,
     "fuel_keywords": [
@@ -186,8 +186,8 @@
       "Somalia port import volumes",
       "Somalia drought conditions"
     ],
-    "fuel_out_dir": "somalia/data/sybilion_fuel",
-    "fuel_raw_path": "somalia/data/wfp_food_prices_som.csv",
+    "fuel_out_dir": "data/somalia/sybilion_fuel",
+    "fuel_raw_path": "data/somalia/wfp_food_prices_som.csv",
     "regional_food_keywords": [
       "Somalia regional food prices",
       "Somalia WFP market prices",
@@ -203,9 +203,9 @@
       "Gu rainfall Somalia",
       "Deyr rainfall Somalia"
     ],
-    "regional_food_out_dir": "somalia/data/sybilion_regional_food",
-    "regional_food_raw_path": "somalia/data/wfp_food_prices_som.csv",
-    "regional_water_out_dir": "project/data/somalia/water/sybilion/regional",
+    "regional_food_out_dir": "data/somalia/sybilion_regional_food",
+    "regional_food_raw_path": "data/somalia/wfp_food_prices_som.csv",
+    "regional_water_out_dir": "data/somalia/water/sybilion/regional",
     "water_keywords": [
       "Somalia water prices",
       "Somalia water trucking costs",
@@ -228,9 +228,9 @@
       "Somalia river levels",
       "Somalia livestock water demand"
     ],
-    "water_out_dir": "project/data/somalia/water/sybilion",
-    "water_raw_path": "project/data/somalia/water/som_water_price_2011_2022.csv",
-    "weather_dir": "project/data/weather",
+    "water_out_dir": "data/somalia/water/sybilion",
+    "water_raw_path": "data/somalia/water/som_water_price_2011_2022.csv",
+    "weather_dir": "data/weather",
     "weather_metrics": {
       "rainfall_mm_per_day": {
         "label": "Rainfall (mm/day)",
@@ -251,6 +251,6 @@
         "transform": null
       }
     },
-    "weather_out_dir": "project/data/weather/sybilion_gedo"
+    "weather_out_dir": "data/weather/sybilion_gedo"
   }
 }

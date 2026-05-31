@@ -15,11 +15,31 @@ API_KEY.txt
 *.nc.db
 *.h5
 *.hdf5
-data/weather/gedo_monthly_weather_*.csv
-data/weather/gedo_monthly_weather_*.png
-data/weather/sybilion_gedo/
-data/somalia/water/sybilion/
 data/sentinel2/
+data/**/*.csv
+data/**/*.json
+data/**/*.png
+data/**/*.jpg
+data/**/*.jpeg
+data/**/*.xlsx
+
+# Minimal files required for the cached demo run
+!data/
+!data/somalia/
+!data/somalia/water/
+!data/somalia/water/som_water_price_2011_2022.csv
+!data/somalia/fsnau_cmb_total_basket_cmb_sorghum.csv
+!data/somalia/wfp_food_prices_som.csv
+!data/weather/
+!data/weather/gedo_monthly_weather_2006_2025.csv
+!data/weather/sybilion_gedo/
+!data/weather/sybilion_gedo/rainfall_mm_per_day_forecast.json
+!data/weather/sybilion_gedo/relative_humidity_pct_forecast.json
+!data/weather/sybilion_gedo/temperature_avg_c_forecast.json
+!data/somalia/water/sybilion/
+!data/somalia/water/sybilion/somalia_water_sybilion_forecast.json
+!data/somalia/sybilion_cmb/
+!data/somalia/sybilion_cmb/forecast.json
 
 # Cache and IDE
 __pycache__/

@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -229,7 +229,7 @@ def set_config(args: argparse.Namespace) -> None:
 def run_pipeline(args: argparse.Namespace):
     data_source = args.data_source or ("live" if args.mode == "refresh" else "cache")
     forecast_source = args.forecast_source or ("live" if args.mode == "refresh" else "cache")
-    agent_forecast_source = args.agent_forecast_source or forecast_source
+    agent_forecast_source = args.agent_forecast_source or "local"
     agent_budget = args.agent_budget if args.agent_budget is not None else args.agent_units
     status(f"mode={args.mode}, data_source={data_source}, forecast_source={forecast_source}")
 

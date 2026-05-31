@@ -54,7 +54,7 @@ def get_credentials() -> CopernicusCredentials:
             key=env_key,
         )
 
-    for path in (".cdsapirc", "project/.cdsapirc", "~/.cdsapirc"):
+    for path in (".cdsapirc", "aid-ressource-allocation-engine/.cdsapirc", "~/.cdsapirc"):
         credentials = _read_cdsapirc(path)
         if credentials:
             return credentials
