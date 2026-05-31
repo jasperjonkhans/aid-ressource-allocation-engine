@@ -61,7 +61,7 @@ Run multiple regions:
 python app.py run --agent-regions Bay Bakool Gedo
 ```
 
-Set a total money budget. The app splits it across selected regions by population before allocating cargo classes:
+Set a custom total money budget. The default `100` is treated as percent allocation; any other custom budget is printed as money. The app splits the value across selected regions by population before allocating cargo classes:
 
 ```bash
 python app.py run --agent-budget 12000000
@@ -100,7 +100,7 @@ python app.py config-show agent.weights
 Update one value. Values are parsed as JSON, so numbers, booleans, lists, and objects keep their type:
 
 ```bash
-python app.py config-set agent.total_budget 12000000
+python app.py config-set agent.total_budget 100
 python app.py config-set agent.weights.water_supplies 1.35
 ```
 

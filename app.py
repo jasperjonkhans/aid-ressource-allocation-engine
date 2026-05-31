@@ -54,6 +54,19 @@ def format_usd(value: float) -> str:
     return f"${formatted}"
 
 
+def format_percent(value: float) -> str:
+    formatted = f"{value:.2f}".replace(".", ",")
+    return f"{formatted}%"
+
+
+def is_percent_budget(total_budget: float) -> bool:
+    return abs(total_budget - 100.0) < 0.005
+
+
+def format_budget_value(value: float, *, percent_mode: bool) -> str:
+    return format_percent(value) if percent_mode else format_usd(value)
+
+
 def display_region_name(region_name: str) -> str:
     return region_name.replace("_", " ").replace("-", " ").title()
 
@@ -90,12 +103,12 @@ def print_pipeline_metrics(weather_result, water_result, cmb_result, fuel_result
     print_series_summary("fuel.global_proxy", fuel_result.history, fuel_result.forecast)
 
 
-def print_agent_decision(decision) -> None:
+def print_agent_decision(decision, *, percent_mode: bool = False) -> None:
     print(f"region: {decision.region}")
-    print(f"regional_budget: {format_usd(decision.regional_budget)}")
+    print(f"regional_budget: {format_budget_value(decision.regional_budget, percent_mode=percent_mode)}")
     print("budget_allocation:")
     for cargo_type, amount in decision.budget_allocation.items():
-        print(f"  {cargo_type}: {format_usd(amount)}")
+        print(f"  {cargo_type}: {format_budget_value(amount, percent_mode=percent_mode)}")
     print("scores:")
     for cargo_type, score in decision.scores.items():
         print(f"  {cargo_type}: {score:.4f}")
@@ -114,10 +127,10 @@ def print_agent_decision(decision) -> None:
 def print_agent_decisions(decisions: dict[str, object]) -> None:
     print("\n=== Agent Decisions ===")
     total_budget = sum(decision.regional_budget for decision in decisions.values())
-    print(f"total_budget: {format_usd(total_budget)}")
+    percent_mode = is_percent_budget(total_budget)
     for decision in decisions.values():
         print("")
-        print_agent_decision(decision)
+        print_agent_decision(decision, percent_mode=percent_mode)
 
 
 def weather_for_agent_region(region_name: str, weather_result):

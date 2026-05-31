@@ -81,7 +81,7 @@ Inspect and update agent configuration:
 ```bash
 python app.py config-show
 python app.py config-show agent.total_budget
-python app.py config-set agent.total_budget 12000000
+python app.py config-set agent.total_budget 100
 python app.py config-set agent.weights.water_supplies 1.35
 ```
 
@@ -90,7 +90,7 @@ See [USAGE.md](USAGE.md) for the full CLI documentation.
 
 ## Agent Layer
 
-Funding is the bottleneck. The agent receives a constant money budget, distributes that budget across regions by population, then distributes each regional budget across aid classes by forecast pressure and delivery cost. The current default total budget is 10,000,000.
+Funding is the bottleneck. The agent receives a constant budget, distributes that budget across regions by population, then distributes each regional budget across aid classes by forecast pressure and delivery cost. The current default total budget is 100, which is treated and printed as percent allocation.
 
 All agent constants live in `config.json`. Print the editable agent constants with short descriptions:
 
@@ -108,7 +108,7 @@ python app.py config-show agent.weights
 Update one agent constant with `config-set`; values are parsed as JSON, so numbers, booleans, lists, and objects keep their type. Only `agent.*` keys can be changed from the CLI:
 
 ```bash
-python app.py config-set agent.total_budget 12000000
+python app.py config-set agent.total_budget 100
 python app.py config-set agent.weights.water_supplies 1.35
 ```
 

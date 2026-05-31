@@ -26,7 +26,7 @@
     },
     "slope_weight": 2.5,
     "softmax_temperature": 1.5,
-    "total_budget": 10000000.0,
+    "total_budget": 100.0,
     "uncertainty_weight": 0.3,
     "weights": {
       "food_supplies": 1.15,
