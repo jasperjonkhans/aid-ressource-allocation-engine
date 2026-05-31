@@ -1,12 +1,16 @@
 # Humanitarian Aid Resource Allocation Agent
 
+A decision-support engine for humanitarian aid allocation in Somalia. The system combines regional food, water, and fuel price forecasts with Copernicus weather indicators to allocate scarce aid capacity across food supplies, water supplies, fuel, and water infrastructure equipment, with transparent reasoning for every recommendation.
+
 ## Somalia
 
 Somalia has suffered from prolonged conflict, resulting in weak infrastructure on top of that recurrent droughts, and heat waves plaege the region. As a result the somali population regularly suffers from water and food shortages often resulting in wide spread famines.
 
+![](README/img/somalia_famine.png)
+
+
 Thats where Humanitarian organisations step in, but - funding  is limited. Moreover is it often wasted by poor ressource management. Humanitarian organisations have trouble predicting where and in which quantity certain aids will be needed.
 
-![](README/img/somalia_famine.png)
 
 ## The upside
 
@@ -46,9 +50,9 @@ Weather data comes from the Copernicus Climate Data Store, using ERA5-Land month
 
 ![Gedo weather Sybilion forecasts](README/img/gedo_weather_sybilion_forecasts.png)
 
-## Usage
+plug timeseries into sybilion API and retrieve forecasts
 
-Run commands from the repository root. In GitHub / Codespaces this working directory is expected to be `/projects/aid-ressource-allocation-engine`.
+## Usage
 
 Install dependencies:
 
@@ -95,9 +99,17 @@ python app.py config-set agent.weights.water_supplies 1.35
 See [USAGE.md](USAGE.md) for the full CLI documentation.
 
 
-## Agent Layerfood
+## Agent Layer
 
-Funding is the bottleneck. The agent receives a constant budget, distributes that budget across regions by population, then distributes each regional budget across aid classes by forecast pressure and delivery cost. The current default total budget is 100, which is treated and printed as percent allocation.
+Funding is the bottleneck. The agent receives the funding and allocates ressources where they are needed the most. 
+
+The agents logic comprised of a formula which you can see with.
+
+```
+python app.py --mode cashed --format formula
+```
+
+Weights and other constants are freely customizable.
 
 All agent constants live in `config.json`. Print the editable agent constants with short descriptions:
 
@@ -119,92 +131,8 @@ python app.py config-set agent.total_budget 100
 python app.py config-set agent.weights.water_supplies 1.35
 ```
 
-https://logcluster.org/sites/default/files/public/2026-03/logistics-clustersomaliaoperation-overviewnovember-2025.pdf
-
-The agent layer receives forecasts rather than pulling data itself. For the current pipeline it gets:
-
-- regional water-price forecasts for Bay, Bakool, and Gedo
-- regional food-price forecasts for Bay, Bakool, and Gedo
-- global fuel-price forecast
-- Gedo weather forecasts for humidity, rainfall, and temperature
-
-It returns a deterministic allocation decision across the aid classes humanitarian organisations typically deliver:
-
-- water supplies
-- water infrastructure equipment such as spare parts and pumps
-- food supplies
-- fuel supplies
-
-Reasoning is deterministic and uses the same forecast-derived score components as the allocation logic. The CLI prints one overall reasoning block that explains which goods and which region receive the largest shares, using the strongest prediction-specific drivers. Use `--reasoning formula` to print the formulas or `--reasoning off` to suppress reasoning output. The CLI defaults to all three configured agent regions; use `--agent-regions Bay Bakool Gedo` for an explicit run or `--agent-region Gedo` for a one-region run. The `--agent-budget` value is distributed across regions by population before each region's cargo allocation is computed. `--agent-units` still works as a deprecated alias.
-
-Current population weights:
-
-| region | population |
-| --- | ---: |
-| Bay | 1,297,550 |
-| Bakool | 564,958 |
-| Gedo | 1,014,335 |
-
-Current aid-class unit costs:
-
-| aid class | base unit cost |
-| --- | ---: |
-| water supplies | 1.0 |
-| water infrastructure | 6.0 |
-| food supplies | 2.0 |
-| fuel | 3.0 |
-
-Current accessibility coefficients:
-
-| region | accessibility |
-| --- | ---: |
-| Bay | 1.0 |
-| Bakool | 1.0 |
-| Gedo | 0.7 |
-
-Effective unit cost is computed as `base_unit_cost / accessibility`. Gedo therefore treats all goods as `1 / 0.7` times as expensive for now.
-
-```text
-drought_index = sigmoid(
-    + w_1 * temperature_slope
-    - w_2 * rainfall_slope
-    - w_3 * humidity_slope
-)
-
-water_supplies_score = WEIGHT_WATER_SUPPLIES * sigmoid(
-    water_price_slope + water_price_level + drought_index
-)
-
-water_infrastructure_score = WEIGHT_WATER_INFRA * sigmoid(
-    water_price_level + drought_index - water_price_slope
-)
-
-food_supplies_score = WEIGHT_FOOD_SUPPLIES * sigmoid(
-    food_price_slope + food_price_level + drought_index
-)
-
-fuel_score = WEIGHT_FUEL * sigmoid(
-    global_fuel_price_slope
-    + global_fuel_price_level
-    + average(water_supplies_score, water_infrastructure_score, food_supplies_score)
-)
-
-budget_pressure = cargo_scores * effective_unit_costs
-budget_allocation = softmax(budget_pressure) * regional_budget
-unit_allocation = budget_allocation / effective_unit_costs
-```
-
-Steep water or food increases push emergency supplies up. High but stable water stress pushes infrastructure. Fuel pressure is treated as a cross-sector multiplier because it affects transport, pumping, and distribution.
-
-## technicalities
-
-Food and fuel prices come from local market data published by humanitarian and regional organisations. Water demand is represented through water-price proxies, both nationally and for selected regions.
-
-Copernicus satellite weather data is used to anticipate drought pressure by forecasting humidity, rainfall, and average temperature separately. Fuel is modelled globally because fuel price pressure tends to propagate across regions through transport and energy costs.
 
 ## data
-
-The prediction pipeline uses only the following data files.
 
 ### input csvs
 
@@ -213,7 +141,10 @@ The prediction pipeline uses only the following data files.
 | national / district panel | water prices | `data/somalia/water/som_water_price_2011_2022.csv` | Somalia water-price observations by `Region`, `District`, `month`, and `water_price`. The pipeline aggregates this to a national monthly water-shortage proxy using mean or median. |
 | national | Cost of Minimum Basket (CMB) | `data/somalia/fsnau_cmb_total_basket_cmb_sorghum.csv` | FSNAU Total Basket CMB with red sorghum as the main cereal. The pipeline extracts monthly USD columns and averages across regions to estimate what a Somali household pays for the minimum food basket. |
 | national / regional market panel | fuel and food prices | `data/somalia/wfp_food_prices_som.csv` | WFP Somalia market-price data. The pipeline filters fuel commodities for the national fuel proxy and food rows by `admin1` for regional food-price proxies. |
-| regional, Gedo | weather | `data/weather/gedo_monthly_weather_2006_2025.csv` | Monthly ERA5-Land weather features clipped to `GEDO_POLYGON`: rainfall in mm/day, average temperature in C, and relative humidity in %. Used to anticipate drought stress and future yield pressure. |
+
+### weather API
+
+Weather features for rainfall, average temperature, and relative humidity are pulled from the **Copernicus Climate Data Store API**, using **ERA5-Land monthly averaged reanalysis** clipped to polygons.
 
 ### prediction series csvs
 
@@ -228,9 +159,6 @@ The prediction pipeline uses only the following data files.
 | regional, Bay | food-price monthly proxy | `data/somalia/sybilion_regional_food/bay/bay_food_price_monthly.csv` | Clean monthly Bay food-price proxy from WFP `admin1=Bay` food rows, aggregated with the configured mean or median. |
 | regional, Bakool | food-price monthly proxy | `data/somalia/sybilion_regional_food/bakool/bakool_food_price_monthly.csv` | Clean monthly Bakool food-price proxy from WFP `admin1=Bakool` food rows, aggregated with the configured mean or median. |
 | regional, Gedo | food-price monthly proxy | `data/somalia/sybilion_regional_food/gedo/gedo_food_price_monthly.csv` | Clean monthly Gedo food-price proxy from WFP `admin1=Gedo` food rows, aggregated with the configured mean or median. |
-| regional, Gedo | rainfall history | `data/weather/sybilion_gedo/rainfall_mm_per_day_history.csv` | Sybilion-ready monthly history for Gedo rainfall. |
-| regional, Gedo | temperature history | `data/weather/sybilion_gedo/temperature_avg_c_history.csv` | Sybilion-ready monthly history for Gedo average temperature. |
-| regional, Gedo | humidity history | `data/weather/sybilion_gedo/relative_humidity_pct_history.csv` | Sybilion-ready monthly history for Gedo relative humidity. |
 | national | water demand / shortage proxy | `data/somalia/water/sybilion/somalia_water_sybilion_forecast.csv` | Sybilion forecast for the national water-price proxy, including point forecasts and quantiles. |
 | regional, Bay | water demand / shortage proxy | `data/somalia/water/sybilion/regional/bay/bay_water_sybilion_forecast.csv` | Regional forecast for the Bay water-price proxy, including point forecasts and quantiles. |
 | regional, Bakool | water demand / shortage proxy | `data/somalia/water/sybilion/regional/bakool/bakool_water_sybilion_forecast.csv` | Regional forecast for the Bakool water-price proxy, including point forecasts and quantiles. |
@@ -240,7 +168,3 @@ The prediction pipeline uses only the following data files.
 | regional, Bay | food-price proxy | `data/somalia/sybilion_regional_food/bay/bay_food_sybilion_forecast.csv` | Forecast for the Bay regional WFP food-price proxy, including point forecasts and quantiles. |
 | regional, Bakool | food-price proxy | `data/somalia/sybilion_regional_food/bakool/bakool_food_sybilion_forecast.csv` | Forecast for the Bakool regional WFP food-price proxy, including point forecasts and quantiles. |
 | regional, Gedo | food-price proxy | `data/somalia/sybilion_regional_food/gedo/gedo_food_sybilion_forecast.csv` | Forecast for the Gedo regional WFP food-price proxy, including point forecasts and quantiles. |
-| regional, Gedo | combined weather forecast | `data/weather/sybilion_gedo/gedo_weather_sybilion_forecasts.csv` | Combined Sybilion weather forecasts for rainfall, temperature, and humidity. |
-| regional, Gedo | rainfall forecast | `data/weather/sybilion_gedo/rainfall_mm_per_day_forecast.csv` | Forecast for Gedo rainfall in mm/day. |
-| regional, Gedo | temperature forecast | `data/weather/sybilion_gedo/temperature_avg_c_forecast.csv` | Forecast for Gedo average temperature in C. |
-| regional, Gedo | humidity forecast | `data/weather/sybilion_gedo/relative_humidity_pct_forecast.csv` | Forecast for Gedo relative humidity in %. |
