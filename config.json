@@ -22,12 +22,12 @@
     "level_weight": 0.8,
     "region_accessibility": {
       "Bakool": 1.0,
-      "Bay": 1.0,
+      "Buur Hakaba": 1.0,
       "Gedo": 0.7
     },
     "region_populations": {
       "Bakool": 564958,
-      "Bay": 1297550,
+      "Buur Hakaba": 197198,
       "Gedo": 1014335
     },
     "slope_weight": 2.5,
@@ -90,11 +90,8 @@
         2.8155222
       ]
     ],
-    "bay_districts": [
-      "Baydhaba",
-      "Buur Hakaba",
-      "Diinsoor",
-      "Qansax Dheere"
+    "buur_hakaba_districts": [
+      "Buur Hakaba"
     ],
     "burhakaba_polygon": [
       [

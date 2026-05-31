@@ -51,6 +51,9 @@ WATER_KEYWORDS = list(_PREDICTIONS_CONFIG["water_keywords"])
 CMB_KEYWORDS = list(_PREDICTIONS_CONFIG["cmb_keywords"])
 FUEL_KEYWORDS = list(_PREDICTIONS_CONFIG["fuel_keywords"])
 REGIONAL_FOOD_KEYWORDS = list(_PREDICTIONS_CONFIG["regional_food_keywords"])
+REGIONAL_FOOD_PROXY_REGIONS = {
+    "buur_hakaba": "Bay",
+}
 
 
 @dataclass(frozen=True)
@@ -358,6 +361,11 @@ def _slugify_region_name(region_name: str) -> str:
         .replace("/", "_")
         .replace("-", "_")
     )
+
+
+def regional_food_source_region(region_name: str) -> str:
+    region_key = _slugify_region_name(region_name)
+    return REGIONAL_FOOD_PROXY_REGIONS.get(region_key, region_name)
 
 
 def load_regional_water_prices(
@@ -681,9 +689,16 @@ def build_regional_food_body(
     history: pd.DataFrame,
     *,
     region_name: str,
+    source_region_name: str | None = None,
     horizon: int = DEFAULT_PRICE_HORIZON,
     aggregation: str = "median",
 ) -> dict[str, Any]:
+    source_region_name = source_region_name or region_name
+    source_note = (
+        f" WFP rows are filtered with admin1={source_region_name} as a proxy."
+        if source_region_name != region_name
+        else ""
+    )
     return build_forecast_body(
         history[["date", "value"]],
         title=f"{region_name} regional food price proxy",
@@ -693,6 +708,7 @@ def build_regional_food_body(
             "across food commodities and markets in the region. Non-food rows and "
             "exchange-rate rows are excluded. Missing months are primitively filled "
             "by interpolation with forward/backward fill at the edges."
+            f"{source_note}"
         ),
         keywords=REGIONAL_FOOD_KEYWORDS + [region_name],
         horizon=horizon,
@@ -1247,19 +1263,25 @@ def predict_regional_food_price(
     region_key = _slugify_region_name(region_name)
     out_dir = out_dir or REGIONAL_FOOD_OUT_DIR / region_key
     out_dir.mkdir(parents=True, exist_ok=True)
+    source_region_name = regional_food_source_region(region_name)
+    if source_region_name != region_name:
+        _status(f"Using {source_region_name} WFP food-price proxy for {region_name}.")
 
     history = load_regional_food_prices(
-        region_name,
+        source_region_name,
         REGIONAL_FOOD_RAW_PATH,
         region_column=region_column,
         aggregation=aggregation,
         extend_to_current=extend_to_current,
     )
+    history["region"] = region_name
+    history["source_region"] = source_region_name
     history.to_csv(out_dir / f"{region_key}_food_price_monthly.csv", index=False)
 
     body = build_regional_food_body(
         history,
         region_name=region_name,
+        source_region_name=source_region_name,
         horizon=horizon,
         aggregation=aggregation,
     )

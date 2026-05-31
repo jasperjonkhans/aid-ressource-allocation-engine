@@ -58,8 +58,10 @@ python app.py run --agent-region Gedo
 Run multiple regions:
 
 ```bash
-python app.py run --agent-regions Bay Bakool Gedo
+python app.py run --agent-regions "Buur Hakaba" Bakool Gedo
 ```
+
+`Buur Hakaba` must be quoted because it contains a space. The water forecast is district-specific; the food forecast uses the available Bay WFP food-price proxy because the current WFP CSV has no Buur Hakaba food rows.
 
 Set a custom total money budget. The default `100` is treated as percent allocation; any other custom budget is printed as money. The app splits the value across selected regions by population before allocating cargo classes:
 

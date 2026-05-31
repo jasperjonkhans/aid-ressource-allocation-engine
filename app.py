@@ -71,6 +71,10 @@ def display_region_name(region_name: str) -> str:
     return region_name.replace("_", " ").replace("-", " ").title()
 
 
+def _normalized_region_key(region_name: str) -> str:
+    return region_name.lower().replace("_", " ").replace("-", " ").strip()
+
+
 def normalize_agent_regions(args: argparse.Namespace) -> list[str]:
     selected = args.agent_regions or ([args.agent_region] if args.agent_region else DEFAULT_AGENT_REGIONS)
     return [display_region_name(region_name) for region_name in selected]
@@ -193,7 +197,7 @@ def print_agent_decisions(decisions: dict[str, object], *, reasoning_mode: str =
 
 
 def weather_for_agent_region(region_name: str, weather_result):
-    return weather_result if region_name.lower().replace(" ", "_") == "gedo" else None
+    return weather_result if _normalized_region_key(region_name) == "gedo" else None
 
 
 def parse_args() -> argparse.Namespace:
@@ -219,7 +223,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "config_value",
         nargs="?",
-        help='New JSON value for config-set, e.g. 12000000 or "[\\"Gedo\\", \\"Bay\\"]".',
+        help='New JSON value for config-set, e.g. 12000000 or "[\\"Gedo\\", \\"Buur Hakaba\\"]".',
     )
     parser.add_argument(
         "--mode",
@@ -240,7 +244,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--agent-regions",
         nargs="+",
-        help="Regions for the agent. Defaults to all configured water regions: Bay Bakool Gedo.",
+        help='Regions for the agent. Defaults to all configured water regions: "Buur Hakaba" Bakool Gedo.',
     )
     parser.add_argument(
         "--agent-units",

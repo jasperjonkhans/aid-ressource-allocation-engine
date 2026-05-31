@@ -34,10 +34,10 @@ CONFIG_DESCRIPTIONS = {
     "agent.good_unit_costs.food_supplies": "Basis-Lieferkosten fuer Nahrungsmittel.",
     "agent.good_unit_costs.fuel": "Basis-Lieferkosten fuer Treibstoff.",
     "agent.region_populations.Gedo": "Bevoelkerung fuer Gedo-Budgetgewichtung.",
-    "agent.region_populations.Bay": "Bevoelkerung fuer Bay-Budgetgewichtung.",
+    "agent.region_populations.Buur Hakaba": "Bevoelkerung fuer Buur-Hakaba-Budgetgewichtung.",
     "agent.region_populations.Bakool": "Bevoelkerung fuer Bakool-Budgetgewichtung.",
     "agent.region_accessibility.Gedo": "Erreichbarkeitsfaktor fuer Gedo-Lieferkosten.",
-    "agent.region_accessibility.Bay": "Erreichbarkeitsfaktor fuer Bay-Lieferkosten.",
+    "agent.region_accessibility.Buur Hakaba": "Erreichbarkeitsfaktor fuer Buur-Hakaba-Lieferkosten.",
     "agent.region_accessibility.Bakool": "Erreichbarkeitsfaktor fuer Bakool-Lieferkosten.",
 }
 
